@@ -1,5 +1,6 @@
 """
-This file contains mock data to simulate sensors and advertisements
+This file contains mock data to simulate sensors and advertisements,
+updated to use the actual DynamoDB ad data structure
 """
 
 # Simulated advertisements (structure based on your DynamoDB format)
@@ -33,48 +34,147 @@ ADS = [
     },
     {
         "ad_id": "16",
-        "age_group": "all",
-        "gender": "both",
-        "humidity": "low",
-        "image_url": "https://adsbucket2009.s3.us-east-1.amazonaws.com/cocacola.jpg",
-        "temperature": "hot",
-        "title": "coca cola"
+        "age_group": "adults",
+        "gender": "female",
+        "humidity": "moderate",
+        "image_url": "https://adsbucket2009.s3.us-east-1.amazonaws.com/sephora.jpg",
+        "temperature": "cool",
+        "title": "sephora"
     },
     {
         "ad_id": "15",
         "age_group": "adult",
-        "gender": "male",
-        "humidity": "medium",
-        "image_url": "https://adsbucket2009.s3.us-east-1.amazonaws.com/bmw.jpg",
-        "temperature": "moderate",
-        "title": "bmw"
+        "gender": "female",
+        "humidity": "high",
+        "image_url": "https://adsbucket2009.s3.us-east-1.amazonaws.com/puma.jpg",
+        "temperature": "hot",
+        "title": "puma"
     },
     {
         "ad_id": "14",
-        "age_group": "elderly",
+        "age_group": "children",
         "gender": "both",
-        "humidity": "medium",
-        "image_url": "https://adsbucket2009.s3.us-east-1.amazonaws.com/insurance.jpg",
-        "temperature": "moderate",
-        "title": "insurance"
+        "humidity": "moderate",
+        "image_url": "https://adsbucket2009.s3.us-east-1.amazonaws.com/pizza_hut.png",
+        "temperature": "cool",
+        "title": "pizza hut"
     },
     {
         "ad_id": "13",
-        "age_group": "children",
+        "age_group": "adults",
         "gender": "both",
         "humidity": "high",
-        "image_url": "https://adsbucket2009.s3.us-east-1.amazonaws.com/icecream.jpg",
-        "temperature": "hot",
-        "title": "ice cream"
+        "image_url": "https://adsbucket2009.s3.us-east-1.amazonaws.com/ikea.jpg",
+        "temperature": "rainy",
+        "title": "ikea"
     },
     {
         "ad_id": "12",
-        "age_group": "all",
-        "gender": "both",
+        "age_group": "children",
+        "gender": "male",
         "humidity": "high",
-        "image_url": "https://adsbucket2009.s3.us-east-1.amazonaws.com/umbrella.jpg",
+        "image_url": "https://adsbucket2009.s3.us-east-1.amazonaws.com/ice_cream.jpg",
+        "temperature": "hot",
+        "title": "cornetto ice cream"
+    },
+    {
+        "ad_id": "11",
+        "age_group": "children",
+        "gender": "male",
+        "humidity": "high",
+        "image_url": "https://adsbucket2009.s3.us-east-1.amazonaws.com/ice_cream_mcd.jpg",
+        "temperature": "hot",
+        "title": "macdonald ice cream"
+    },
+    {
+        "ad_id": "10",
+        "age_group": "senior",
+        "gender": "both",
+        "humidity": "moderate",
+        "image_url": "https://adsbucket2009.s3.us-east-1.amazonaws.com/healthy_365.jpg",
+        "temperature": "cool",
+        "title": "healthy 365"
+    },
+    {
+        "ad_id": "9",
+        "age_group": "adults",
+        "gender": "male",
+        "humidity": "high",
+        "image_url": "https://adsbucket2009.s3.us-east-1.amazonaws.com/Gillette_shaver.jpg",
+        "temperature": "hot",
+        "title": "gillette shaver"
+    },
+    {
+        "ad_id": "8",
+        "age_group": "adults",
+        "gender": "female",
+        "humidity": "moderate",
+        "image_url": "https://adsbucket2009.s3.us-east-1.amazonaws.com/chanel_perfume_women.jpg",
+        "temperature": "cool",
+        "title": "chanel perfume"
+    },
+    {
+        "ad_id": "7",
+        "age_group": "adults",
+        "gender": "female",
+        "humidity": "moderate",
+        "image_url": "https://adsbucket2009.s3.us-east-1.amazonaws.com/beauty.jpg",
+        "temperature": "cool",
+        "title": "beauty"
+    },
+    {
+        "ad_id": "6",
+        "age_group": "adults",
+        "gender": "all",
+        "humidity": "high",
+        "image_url": "https://adsbucket2009.s3.us-east-1.amazonaws.com/anytime_fitness.jpg",
+        "temperature": "hot",
+        "title": "anytime fitness"
+    },
+    {
+        "ad_id": "5",
+        "age_group": "adults",
+        "gender": "all",
+        "humidity": "high",
+        "image_url": "https://adsbucket2009.s3.us-east-1.amazonaws.com/adidas.jpg",
+        "temperature": "hot",
+        "title": "adidas"
+    },
+    {
+        "ad_id": "4",
+        "age_group": "teenager",
+        "gender": "male",
+        "humidity": "high",
+        "image_url": "https://adsbucket2009.s3.us-east-1.amazonaws.com/100PLUS.jpg",
+        "temperature": "hot",
+        "title": "100 plus"
+    },
+    {
+        "ad_id": "3",
+        "age_group": "adults",
+        "gender": "female",
+        "humidity": "high",
+        "image_url": "https://adsbucket2009.s3.us-east-1.amazonaws.com/avatar_movie.jpg",
         "temperature": "rainy",
-        "title": "umbrella"
+        "title": "avatar movie"
+    },
+    {
+        "ad_id": "2",
+        "age_group": "adults",
+        "gender": "male",
+        "humidity": "moderate",
+        "image_url": "https://adsbucket2009.s3.us-east-1.amazonaws.com/dior_perfume_men.jpg",
+        "temperature": "cool",
+        "title": "dior perfume"
+    },
+    {
+        "ad_id": "1",
+        "age_group": "teenagers",
+        "gender": "male",
+        "humidity": "high",
+        "image_url": "https://adsbucket2009.s3.us-east-1.amazonaws.com/cocacola.jpg",
+        "temperature": "high",
+        "title": "cocacola"
     }
 ]
 
@@ -201,6 +301,7 @@ def map_gender(gender_value):
         "any": "both",
         "mixed": "both",
         "mostly_male": "male",
-        "mostly_female": "female"
+        "mostly_female": "female",
+        "all": "both"
     }
     return mapping.get(gender_value.lower(), "both")

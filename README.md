@@ -1,83 +1,121 @@
-# Smart Advertisement Board Simulation
+# Smart Advertisement Board Dashboard (Local Storage Version)
 
-This project simulates the Content Decision Engine for a Smart Advertisement Board system that uses real-time environmental and audience analysis to display targeted advertisements.
+This dashboard integrates with the Decision Engine for the Smart Advertisement Board system that displays dynamic content based on real-time environmental and audience analysis. This version uses local file storage instead of AWS services.
 
-## System Architecture
+## Features
 
-The system follows the architecture shown in the design diagram, with the following components:
+- **Two Tab Interface**:
+  - **Advertisement Display** - Shows advertisements in rotation (5 seconds per ad)
+  - **Admin Dashboard** - Provides control and monitoring of the system
 
-1. **Environmental Analysis** - Simulates temperature, humidity, and weather data.
-2. **Audience Analysis** - Simulates demographic data from a camera feed.
-3. **Content Repository** - Stores and retrieves advertisements.
-4. **Decision Engine** - Selects optimal content based on current conditions.
-5. **Display Manager** - Simulates the display of advertisements.
+- **Environment Simulation**:
+  - Temperature, humidity, and weather condition controls
+  - Predefined environmental scenarios
 
-## Files and Components
+- **Audience Simulation**:
+  - Group size, age group, and gender distribution controls
+  - Predefined audience scenarios
 
-- `mock_data.py` - Contains simulated data for testing without hardware
-- `environmental_analysis.py` - Simulates weather sensing and classification
-- `demographic_analysis.py` - Simulates audience detection and analysis
-- `content_repository.py` - Simulates the advertisement content database
-- `decision_engine.py` - Implements the core decision-making logic
-- `display_manager.py` - Simulates the display output
-- `simulation_app.py` - Ties everything together in a simulation
-- `main.py` - Entry point with command-line options
+- **Decision Engine**:
+  - Rule-based advertisement selection
+  - Context-aware decision making
+  - Scoring system based on multiple factors
+  - Performance metrics tracking
 
-## How to Run the Simulation
+- **Local Storage**:
+  - Uses local image files instead of AWS S3
+  - Stores ad metadata in a local JSON file
+  - No internet connection required
+
+## Installation
 
 1. Ensure you have Python 3.6+ installed.
-2. Run the simulation in interactive mode:
+2. Install required packages:
 
 ```bash
-python main.py
+pip install pillow tkinter
 ```
 
-Or run in automatic mode with specified cycles:
+3. Create a folder called `Advertisements` and place your advertisement images (JPG/PNG files) in it.
+4. Run the create_sample_metadata.py script to generate metadata for your images:
 
 ```bash
-python main.py --mode auto --cycles 10 --interval 3
+python create_sample_metadata.py
 ```
 
-## Interactive Mode Options
+## Running the Dashboard
 
-In interactive mode, you can:
+Run the dashboard:
 
-1. Run a single decision cycle with random conditions
-2. Run a single cycle with specific scenarios
-3. Run a continuous simulation with multiple cycles
-4. View available advertisements
-5. Check system status
-6. Exit and save performance data
+```bash
+python run_local_dashboard.py
+```
 
-## How the Decision Engine Works
+Run in fullscreen mode:
 
-The Decision Engine is the core component that selects advertisements based on:
+```bash
+python run_local_dashboard.py --fullscreen
+```
 
-1. **Weather context** - Temperature, humidity, and weather conditions
-2. **Audience profile** - Demographics of viewers (age, gender, group size)
-3. **Content rules** - Priorities and conditions for displaying specific ads
-4. **Performance history** - Learning from past ad performance
+Specify a custom advertisements folder:
 
-The engine uses a scoring system to rank advertisements based on how well they match current conditions. It considers:
+```bash
+python run_local_dashboard.py --ads-folder="path/to/ads"
+```
 
-- Weather matching (temperature and humidity)
-- Audience matching (age group and gender)
-- Novelty (avoiding repetition)
-- Rule-based adjustments
+## Files in this Project
 
-## Extending the Simulation
+- **local_dashboard.py** - Main dashboard application with display and admin interfaces
+- **run_local_dashboard.py** - Entry point script with command line options
+- **local_content_repository.py** - Manages local advertisement content and metadata
+- **create_sample_metadata.py** - Creates initial metadata for advertisement images
+- **decision_engine.py** - Core decision-making logic
+- **environmental_analysis.py** - Simulates environmental sensing
+- **demographic_analysis.py** - Simulates audience detection
+- **display_manager.py** - Handles displaying advertisements
+- **mock_data.py** - Contains simulated data for testing
 
-To extend this simulation:
+## Structure of ad_metadata.json
 
-1. Add more advertisements to `mock_data.py`
-2. Create custom rules for the Decision Engine
-3. Implement the ML component for learning from performance data
-4. Connect to real data sources (sensors, cameras, database)
+The metadata file (`ad_metadata.json`) contains information about each advertisement:
 
-## Future Enhancements
+```json
+[
+  {
+    "ad_id": "1",
+    "title": "coca_cola",
+    "image_file": "coca_cola.jpg",
+    "age_group": "all",
+    "gender": "both",
+    "temperature": "hot",
+    "humidity": "medium"
+  },
+  ...
+]
+```
 
-1. Implement machine learning models for audience analysis
-2. Add reinforcement learning to optimize content selection
-3. Create a web interface for monitoring and configuration
-4. Integrate with actual hardware (Raspberry Pi, sensors, display)
-5. Connect to a real database for content management
+You can edit this file manually, or use the "Edit Ad Metadata" button in the Admin Dashboard.
+
+## Admin Dashboard Tabs
+
+1. **Current Status** - Shows real-time system state
+2. **Performance** - Displays ad performance metrics
+3. **Decision Rules** - View and edit decision engine rules
+4. **Ad Inventory** - Browse and manage advertisements
+
+## Usage Instructions
+
+1. Use the **Environment Settings** and **Audience Settings** panels to simulate different conditions
+2. Apply preset scenarios using the **Scenario Presets** dropdown menus
+3. Click **Show Next Advertisement** to manually advance ads or toggle **Auto-cycle ads** for automatic rotation
+4. Monitor the decision-making process and performance in the **Statistics & Monitoring** tabs
+5. Edit advertisement metadata by selecting an ad in the inventory and clicking **Edit Ad Metadata**
+
+## Notes for Implementation with Hardware
+
+To implement this system with actual Raspberry Pi and sensors:
+
+1. Replace the simulated sensor data with actual readings from GPIO-connected sensors
+2. Connect a camera and implement OpenCV or TensorFlow for audience analysis
+3. Configure the display output to work with your specific display hardware
+4. Set up automated startup on boot

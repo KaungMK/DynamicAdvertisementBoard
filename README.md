@@ -1,168 +1,65 @@
-# Smart Advertisement Board Dashboard (Local Storage Version)
+# [Start Bootstrap - SB Admin 2](https://startbootstrap.com/theme/sb-admin-2/)
 
-This dashboard integrates with the Decision Engine for the Smart Advertisement Board system that displays dynamic content based on real-time environmental and audience analysis. This version uses local file storage instead of AWS services.
+[SB Admin 2](https://startbootstrap.com/theme/sb-admin-2/) is an open source admin dashboard theme for [Bootstrap](https://getbootstrap.com/) created by [Start Bootstrap](https://startbootstrap.com/).
 
-## Features
+For the legacy Bootstrap 3 version of this theme, you can view the [last stable release](https://github.com/StartBootstrap/startbootstrap-sb-admin-2/releases/tag/v3.3.7%2B1) of SB Admin 2 for Bootstrap 3.
 
-- **Two Tab Interface**:
-  - **Advertisement Display** - Shows advertisements in rotation (5 seconds per ad)
-  - **Admin Dashboard** - Provides control and monitoring of the system
+## Preview
 
-- **Environment Simulation**:
-  - Temperature, humidity, and weather condition controls
-  - Predefined environmental scenarios
+[![SB Admin 2 Preview](https://assets.startbootstrap.com/img/screenshots/themes/sb-admin-2.png)](https://startbootstrap.github.io/startbootstrap-sb-admin-2/)
 
-- **Audience Simulation**:
-  - Group size, age group, and gender distribution controls
-  - Predefined audience scenarios
+**[Launch Live Preview](https://startbootstrap.github.io/startbootstrap-sb-admin-2/)**
 
-- **Decision Engine**:
-  - Rule-based advertisement selection
-  - Context-aware decision making
-  - Scoring system based on multiple factors
-  - Performance metrics tracking
+## Status
 
-- **Local Storage**:
-  - Uses local image files instead of AWS S3
-  - Stores ad metadata in a local JSON file
-  - No internet connection required
+[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/StartBootstrap/startbootstrap-sb-admin-2/master/LICENSE)
+[![npm version](https://img.shields.io/npm/v/startbootstrap-sb-admin-2.svg)](https://www.npmjs.com/package/startbootstrap-sb-admin-2)
+[![Build Status](https://travis-ci.org/StartBootstrap/startbootstrap-sb-admin-2.svg?branch=master)](https://travis-ci.org/StartBootstrap/startbootstrap-sb-admin-2)
+[![dependencies Status](https://david-dm.org/StartBootstrap/startbootstrap-sb-admin-2/status.svg)](https://david-dm.org/StartBootstrap/startbootstrap-sb-admin-2)
+[![devDependencies Status](https://david-dm.org/StartBootstrap/startbootstrap-sb-admin-2/dev-status.svg)](https://david-dm.org/StartBootstrap/startbootstrap-sb-admin-2?type=dev)
 
-## Installation
+## Download and Installation
 
-1. Ensure you have Python 3.6+ installed.
-2. Install required packages:
+To begin using this template, choose one of the following options to get started:
 
-```bash
-pip install pillow tkinter
-```
+* [Download the latest release on Start Bootstrap](https://startbootstrap.com/theme/sb-admin-2/)
+* Install via npm: `npm i startbootstrap-sb-admin-2`
+* Clone the repo: `git clone https://github.com/StartBootstrap/startbootstrap-sb-admin-2.git`
+* [Fork, Clone, or Download on GitHub](https://github.com/StartBootstrap/startbootstrap-sb-admin-2)
 
-3. Create a folder called `Advertisements` and place your advertisement images (JPG/PNG files) in it.
-4. Run the create_sample_metadata.py script to generate metadata for your images:
+## Usage
 
-```bash
-python create_sample_metadata.py
-```
+After installation, run `npm install` and then run `npm start` which will open up a preview of the template in your default browser, watch for changes to core template files, and live reload the browser when changes are saved. You can view the `gulpfile.js` to see which tasks are included with the dev environment.
 
-## Running the Dashboard
+### Gulp Tasks
 
-Run the dashboard:
+* `gulp` the default task that builds everything
+* `gulp watch` browserSync opens the project in your default browser and live reloads when changes are made
+* `gulp css` compiles SCSS files into CSS and minifies the compiled CSS
+* `gulp js` minifies the themes JS file
+* `gulp vendor` copies dependencies from node_modules to the vendor directory
 
-```bash
-python run_local_dashboard.py
-```
+You must have npm installed globally in order to use this build environment. This theme was built using node v11.6.0 and the Gulp CLI v2.0.1. If Gulp is not running properly after running `npm install`, you may need to update node and/or the Gulp CLI locally.
 
-Run in fullscreen mode:
+## Bugs and Issues
 
-```bash
-python run_local_dashboard.py --fullscreen
-```
+Have a bug or an issue with this template? [Open a new issue](https://github.com/StartBootstrap/startbootstrap-sb-admin-2/issues) here on GitHub or leave a comment on the [template overview page at Start Bootstrap](https://startbootstrap.com/theme/sb-admin-2/).
 
-Specify a custom advertisements folder:
+## About
 
-```bash
-python run_local_dashboard.py --ads-folder="path/to/ads"
-```
+Start Bootstrap is an open source library of free Bootstrap templates and themes. All of the free templates and themes on Start Bootstrap are released under the MIT license, which means you can use them for any purpose, even for commercial projects.
 
-## Files in this Project
+* <https://startbootstrap.com>
+* <https://twitter.com/SBootstrap>
 
-- **local_dashboard.py** - Main dashboard application with display and admin interfaces
-- **run_local_dashboard.py** - Entry point script with command line options
-- **local_content_repository.py** - Manages local advertisement content and metadata
-- **create_sample_metadata.py** - Creates initial metadata for advertisement images
-- **decision_engine.py** - Core decision-making logic
-- **environmental_analysis.py** - Simulates environmental sensing
-- **demographic_analysis.py** - Simulates audience detection
-- **display_manager.py** - Handles displaying advertisements
-- **mock_data.py** - Contains simulated data for testing
+Start Bootstrap was created by and is maintained by **[David Miller](https://davidmiller.io/)**.
 
-## Structure of ad_metadata.json
+* <https://davidmiller.io>
+* <https://twitter.com/davidmillerhere>
+* <https://github.com/davidtmiller>
 
-The metadata file (`ad_metadata.json`) contains information about each advertisement:
+Start Bootstrap is based on the [Bootstrap](https://getbootstrap.com/) framework created by [Mark Otto](https://twitter.com/mdo) and [Jacob Thorton](https://twitter.com/fat).
 
-```json
-[
-  {
-    "ad_id": "1",
-    "title": "coca_cola",
-    "image_file": "coca_cola.jpg",
-    "age_group": "all",
-    "gender": "both",
-    "temperature": "hot",
-    "humidity": "medium"
-  },
-  ...
-]
-```
+## Copyright and License
 
-You can edit this file manually, or use the "Edit Ad Metadata" button in the Admin Dashboard.
-
-## Admin Dashboard Tabs
-
-1. **Current Status** - Shows real-time system state
-2. **Performance** - Displays ad performance metrics
-3. **Decision Rules** - View and edit decision engine rules
-4. **Ad Inventory** - Browse and manage advertisements
-
-## Usage Instructions
-
-1. Use the **Environment Settings** and **Audience Settings** panels to simulate different conditions
-2. Apply preset scenarios using the **Scenario Presets** dropdown menus
-3. Click **Show Next Advertisement** to manually advance ads or toggle **Auto-cycle ads** for automatic rotation
-4. Monitor the decision-making process and performance in the **Statistics & Monitoring** tabs
-5. Edit advertisement metadata by selecting an ad in the inventory and clicking **Edit Ad Metadata**
-
-## Notes for Implementation with Hardware
-
-To implement this system with actual Raspberry Pi and sensors:
-
-1. Replace the simulated sensor data with actual readings from GPIO-connected sensors
-2. Connect a camera and implement OpenCV or TensorFlow for audience analysis
-3. Configure the display output to work with your specific display hardware
-4. Set up automated startup on boot
-
-# Smart Advertisement Board Dashboard (AWS Cloud Version)
-
-## Connecting with aws Dynamodb & S3
-
-## Installation
-
-1. Ensure you have Python 3.6+ installed.
-2. Install required packages:
-
-```bash
-pip install boto3
-
-sudo apt install awscli -y
-```
-
-## AWS Setup
-
-1. Create aws directory.
-
-```bash
-mkdir -p ~/.aws
-```
-
-2. Go to AWS Details > AWS CLI > Show copy the aws credentials.
-3. Enter the aws credentials.
-
-```bash
-nano ~/.aws/credentials
-```
-4. Press CTRL + X to exit.
-5. Press Y to confirm saving.
-6. Press Enter to save the file.
-7. Check aws credentials.
-
-```bash
-aws sts get-caller-identity
-```
-8. Should see something like below:
-
-```bash
-{
-"UserId": "ABCDEFGHI1234567890",
-"Account": "123456789012",
-"Arn": "arn:aws:iam::123456789012:user/your-user"
-}
-```
+Copyright 2013-2021 Start Bootstrap LLC. Code released under the [MIT](https://github.com/StartBootstrap/startbootstrap-resume/blob/master/LICENSE) license.

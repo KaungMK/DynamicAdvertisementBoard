@@ -119,3 +119,50 @@ To implement this system with actual Raspberry Pi and sensors:
 2. Connect a camera and implement OpenCV or TensorFlow for audience analysis
 3. Configure the display output to work with your specific display hardware
 4. Set up automated startup on boot
+
+# Smart Advertisement Board Dashboard (AWS Cloud Version)
+
+## Connecting with aws Dynamodb & S3
+
+## Installation
+
+1. Ensure you have Python 3.6+ installed.
+2. Install required packages:
+
+```bash
+pip install boto3
+
+sudo apt install awscli -y
+```
+
+## AWS Setup
+
+1. Create aws directory.
+
+```bash
+mkdir -p ~/.aws
+```
+
+2. Go to AWS Details > AWS CLI > Show copy the aws credentials.
+3. Enter the aws credentials.
+
+```bash
+nano ~/.aws/credentials
+```
+4. Press CTRL + X to exit.
+5. Press Y to confirm saving.
+6. Press Enter to save the file.
+7. Check aws credentials.
+
+```bash
+aws sts get-caller-identity
+```
+8. Should see something like below:
+
+```bash
+{
+"UserId": "ABCDEFGHI1234567890",
+"Account": "123456789012",
+"Arn": "arn:aws:iam::123456789012:user/your-user"
+}
+```

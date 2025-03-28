@@ -14,7 +14,7 @@ from collections import deque, Counter  # For data tracking and voting
 # ======================
 # Configuration Section
 # ======================
-emotion_model_path = './model/emotion_little_vgg_2.h5'  # Path to emotion classification model
+emotion_model_path = './models/emotion_little_vgg_2.h5'  # Path to emotion classification model
 pretrained_model_url = "https://github.com/yu4u/age-gender-estimation/releases/download/v0.5/weights.28-3.73.hdf5"  # Age/gender model weights
 modhash = 'fbe63257a054c1c5466cfd7bf14646d6'  # Hash for model verification
 emotion_classes = {0: 'Angry', 1: 'Fear', 2: 'Happy', 3: 'Neutral', 4: 'Sad', 5: 'Surprise'}  # Emotion labels
@@ -33,7 +33,7 @@ MIN_FACE_DIMENSION = 20       # Minimum width/height for valid face detection
 # Initialize WideResNet for age/gender estimation
 model = WideResNet(64, depth=16, k=8)()
 model.load_weights(get_file("weights.28-3.73.hdf5", pretrained_model_url,
-                          cache_subdir="pretrained_models", file_hash=modhash))
+                          cache_subdir="models", file_hash=modhash))
 
 # Load emotion classification model
 classifier = load_model(emotion_model_path)

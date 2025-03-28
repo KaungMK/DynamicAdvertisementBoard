@@ -390,71 +390,13 @@ class SmartAdDisplay:
         except Exception as e:
             logger.error(f"Error in display_ad: {e}")
 
-def create_placeholder_files():
-    """Create placeholder sensor data files if they don't exist"""
-    # Get the directory of the current script
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    sensors_dir = os.path.join(base_dir, "sensors")
-    
-    # Create the sensors directory if it doesn't exist
-    if not os.path.exists(sensors_dir):
-        os.makedirs(sensors_dir)
-        print(f"Created sensors directory: {sensors_dir}")
-    
-    # Create a placeholder temperature data file if it doesn't exist
-    temp_file = os.path.join(sensors_dir, "temp_humidity_data.json")
-    if not os.path.exists(temp_file):
-        with open(temp_file, 'w') as f:
-            f.write('''[
-    {
-        "id": "36a8914a-e1f1-4226-a0d1-537e148c5b30",
-        "timestamp": "2025-03-28 13:25:40",
-        "avg_dht_temp": 31.87,
-        "avg_dht_humidity": 67.89,
-        "api_temp": 31.22,
-        "api_humidity": 69,
-        "api_pressure": 1008
-    }
-]''')
-        print(f"Created placeholder temperature file: {temp_file}")
-    
-    # Create a placeholder audience data file if it doesn't exist
-    audience_file = os.path.join(sensors_dir, "audience_data.json")
-    if not os.path.exists(audience_file):
-        with open(audience_file, 'w') as f:
-            f.write('''[
-    {
-        "id": "42a8914a-e1f1-4226-a0d1-537e148c5b31",
-        "timestamp": "2025-03-28 13:25:40",
-        "audience_present": true,
-        "age_group": "adult",
-        "gender": "mixed",
-        "group_size": 2
-    }
-]''')
-        print(f"Created placeholder audience file: {audience_file}")
 
 def main():
     """Main function to run the advertisement display"""
-    # Print the current working directory for debugging
-    print(f"Current working directory: {os.getcwd()}")
-    
-    # Create absolute paths to your data files
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    env_data_file = os.path.join(base_dir, "sensors", "temp_humidity_data.json")
-    audience_data_file = os.path.join(base_dir, "sensors", "audience_data.json")
-    
-    # Verify that the files exist
-    print(f"Checking if env_data_file exists: {os.path.exists(env_data_file)}")
-    print(f"Checking if audience_data_file exists: {os.path.exists(audience_data_file)}")
-    
     # Initialize the application with the absolute paths
     root = tk.Tk()
-    app = SmartAdDisplay(root, 
-                       env_data_file=env_data_file, 
-                       audience_data_file=audience_data_file)
+    app = SmartAdDisplay(root)                      
     root.mainloop()
 
 if __name__ == "__main__":
-    create_placeholder_files()
     main()

@@ -1,11 +1,13 @@
 """
-This file implements the core Content Decision Engine
+Enhanced Decision Engine with Score-Based Ad Selection System
 """
 
 import json
 import random
 import logging
 from datetime import datetime
+import os
+from collections import defaultdict
 
 # Configure logging
 logging.basicConfig(
@@ -16,309 +18,406 @@ logger = logging.getLogger("DecisionEngine")
 
 class ContentDecisionEngine:
     """
-    The core decision engine that selects the optimal advertisement
-    based on environmental conditions and audience demographics
+    Enhanced decision engine with score-based ad selection system
     """
     
-    def __init__(self, content_repository, rules_file=None):
+    def __init__(self, content_repository, 
+                 env_data_file="sensors/temp_humidity_data.json",
+                 audience_data_file="sensors/audience_data.json",
+                 history_file="ad_display_history.json"):
         """
         Initialize the decision engine
         
         Args:
             content_repository: Repository for accessing ad content
-            rules_file (str, optional): Path to JSON rules file
+            env_data_file (str): Path to JSON file with environmental data
+            audience_data_file (str): Path to JSON file with audience data
+            history_file (str): Path to JSON file to store ad display history
         """
         self.content_repository = content_repository
-        self.rules = self._load_rules(rules_file)
-        self.recent_selections = []  # Track recent selections to avoid repetition
-        self.performance_log = []    # Track ad performance for learning
+        self.env_data_file = env_data_file
+        self.audience_data_file = audience_data_file
+        self.history_file = history_file
         
-    def _load_rules(self, rules_file):
+        # Ad history and scores
+        self.ad_scores = defaultdict(float)  # Default score is 0.0
+        self.recent_displays = []  # Track recent ad displays
+        self.max_history_length = 50  # Maximum number of entries to keep
+        
+        # Load existing history if available
+        self.load_display_history()
+    
+    def load_display_history(self):
+        """Load ad display history from file if it exists"""
+        try:
+            if os.path.exists(self.history_file):
+                with open(self.history_file, 'r') as f:
+                    history_data = json.load(f)
+                    
+                    if 'recent_displays' in history_data:
+                        self.recent_displays = history_data['recent_displays']
+                        # Limit to max_history_length
+                        if len(self.recent_displays) > self.max_history_length:
+                            self.recent_displays = self.recent_displays[-self.max_history_length:]
+                    
+                    if 'ad_scores' in history_data:
+                        self.ad_scores = defaultdict(float, history_data['ad_scores'])
+                        
+                logger.info(f"Loaded display history for {len(self.ad_scores)} ads")
+        except Exception as e:
+            logger.error(f"Error loading display history: {e}")
+    
+    def save_display_history(self):
+        """Save ad display history to file"""
+        try:
+            # Create parent directory if it doesn't exist
+            os.makedirs(os.path.dirname(os.path.abspath(self.history_file)), exist_ok=True)
+            
+            history_data = {
+                'recent_displays': self.recent_displays,
+                'ad_scores': dict(self.ad_scores)  # Convert defaultdict to regular dict for JSON
+            }
+            
+            with open(self.history_file, 'w') as f:
+                json.dump(history_data, f, indent=2)
+                
+            logger.info(f"Saved display history with {len(self.recent_displays)} recent displays")
+        except Exception as e:
+            logger.error(f"Error saving display history: {e}")
+    
+    def get_latest_data(self, data_file):
         """
-        Load decision rules from a JSON file
+        Read the latest data from a sensor data file
         
         Args:
-            rules_file (str): Path to JSON rules file
+            data_file (str): Path to the data file
             
         Returns:
-            list: Loaded rules or default rules if file not found
+            dict: Latest data entry or None if unavailable
         """
-        if rules_file:
-            try:
-                with open(rules_file, 'r') as f:
-                    return json.load(f)
-            except Exception as e:
-                logger.warning(f"Failed to load rules from {rules_file}: {e}")
-                logger.info("Using default rules")
+        try:
+            with open(data_file, 'r') as f:
+                data = json.load(f)
                 
-        # Default rules if no file provided or loading failed
-        return [
-            {
-                "id": "rule_001",
-                "name": "Hot Weather - Cold Drinks",
-                "priority": 5,
-                "conditions": {
-                    "temperature": "hot",
-                    "audience_age": ["all", "teenager", "adult"]
-                },
-                "weight": 1.0
-            },
-            {
-                "id": "rule_002",
-                "name": "Rainy Weather - Umbrellas",
-                "priority": 8,
-                "conditions": {
-                    "weather": "rainy",
-                    "audience_age": ["all", "adult", "elderly"]
-                },
-                "weight": 1.0
-            },
-            {
-                "id": "rule_003",
-                "name": "Kids Present - Child-Friendly Ads",
-                "priority": 7,
-                "conditions": {
-                    "audience_age": ["children"]
-                },
-                "weight": 1.0
-            }
-        ]
-        
-    def calculate_ad_score(self, ad, weather_context, audience_profile):
+            if not data:
+                logger.warning(f"Data file {data_file} is empty")
+                return None
+                
+            # Sort by timestamp to get the latest reading
+            data.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+            latest_data = data[0]
+            
+            return latest_data
+            
+        except FileNotFoundError:
+            logger.error(f"Data file {data_file} not found")
+            return None
+        except json.JSONDecodeError:
+            logger.error(f"Error parsing data file {data_file}")
+            return None
+        except Exception as e:
+            logger.error(f"Error reading data: {e}")
+            return None
+    
+    def get_environmental_context(self):
         """
-        Calculate a score for each advertisement based on current conditions
+        Create environmental context using real sensor data
+        
+        Returns:
+            dict: Environmental context with categorized values
+        """
+        sensor_data = self.get_latest_data(self.env_data_file)
+        
+        if not sensor_data:
+            # Default values if no sensor data available
+            logger.warning("Using default environmental context due to missing sensor data")
+            return {
+                "temperature": 25.0,
+                "temperature_category": "moderate",
+                "humidity": 60.0,
+                "humidity_category": "medium",
+                "timestamp": datetime.now().isoformat()
+            }
+        
+        # Extract and categorize environmental data
+        temperature = sensor_data.get('avg_dht_temp', 25.0)
+        humidity = sensor_data.get('avg_dht_humidity', 60.0)
+        
+        # Categorize temperature
+        if temperature < 15:
+            temp_category = "cold"
+        elif temperature < 25:
+            temp_category = "moderate"
+        else:
+            temp_category = "hot"
+            
+        # Categorize humidity
+        if humidity < 40:
+            humidity_category = "low"
+        elif humidity < 70:
+            humidity_category = "medium"
+        else:
+            humidity_category = "high"
+        
+        # Create environmental context
+        env_context = {
+            "temperature": temperature,
+            "temperature_category": temp_category,
+            "humidity": humidity,
+            "humidity_category": humidity_category,
+            "timestamp": sensor_data.get('timestamp', datetime.now().isoformat())
+        }
+        
+        return env_context
+    
+    def get_audience_context(self):
+        """
+        Create audience context using camera data or audience data file
+        
+        Returns:
+            dict: Audience context with demographic information
+        """
+        audience_data = self.get_latest_data(self.audience_data_file)
+        
+        if not audience_data:
+            # Default values if no audience data available
+            logger.warning("Using default audience context due to missing data")
+            return {
+                "audience_present": False,
+                "age_group": "all",
+                "gender": "both",
+                "group_size": 0,
+                "timestamp": datetime.now().isoformat()
+            }
+        
+        # Extract audience information
+        # Note: These fields should match what your audience detection system provides
+        audience_context = {
+            "audience_present": audience_data.get('audience_present', False),
+            "age_group": audience_data.get('age_group', 'all'),
+            "gender": audience_data.get('gender', 'both'),
+            "group_size": audience_data.get('group_size', 0),
+            "timestamp": audience_data.get('timestamp', datetime.now().isoformat())
+        }
+        
+        return audience_context
+    
+    def calculate_demographic_relevance(self, ad, audience_context):
+        """
+        Calculate how relevant an ad is for the current audience demographics
         
         Args:
             ad (dict): Advertisement data
-            weather_context (dict): Current environmental conditions
-            audience_profile (dict): Current audience demographics
+            audience_context (dict): Audience context data
             
         Returns:
-            float: Score representing how well the ad matches current conditions
+            float: Relevance score (0.0-1.0)
         """
-        score = 0.0
+        if not audience_context.get("audience_present", False):
+            return 1.0  # If no audience, all ads are equally relevant
         
-        # Base score components
-        weather_score = 0.0
-        audience_score = 0.0
-        novelty_score = 0.0
+        relevance = 1.0  # Start with perfect relevance
         
-        # 1. Weather matching score (0-40 points)
-        # Temperature match
-        if "temperature_category" in weather_context and "temperature" in ad:
-            if weather_context["temperature_category"] == ad["temperature"]:
-                weather_score += 20
-            elif (weather_context["temperature_category"] == "moderate" and 
-                  ad["temperature"] in ["hot", "cold"]):
-                weather_score += 5  # Partial match
-                
-        # Humidity match
-        if "humidity_category" in weather_context and "humidity" in ad:
-            if weather_context["humidity_category"] == ad["humidity"]:
-                weather_score += 20
-            elif weather_context["humidity_category"] == "medium" and ad["humidity"] in ["high", "low"]:
-                weather_score += 10  # Partial match
-                
-        # 2. Audience matching score (0-40 points)
-        if audience_profile.get("audience_present", False):
-            # Age group match
-            if "estimated_age_group" in audience_profile and "age_group" in ad:
-                audience_age = map_age_group(audience_profile["estimated_age_group"])
-                ad_age = map_age_group(ad["age_group"])
-                
-                if ad_age == "all" or audience_age == ad_age:
-                    audience_score += 20
-                    
-            # Gender match
-            if "gender_distribution" in audience_profile and "gender" in ad:
-                audience_gender = audience_profile["gender_distribution"]
-                ad_gender = ad["gender"]
-                
-                if ad_gender == "both":
-                    audience_score += 20  # "both" matches any audience
-                elif (audience_gender == "mostly_male" and ad_gender == "male") or \
-                     (audience_gender == "mostly_female" and ad_gender == "female"):
-                    audience_score += 20
-                elif audience_gender == "mixed":
-                    audience_score += 15  # Mixed audience gets partial match for targeted ads
-                
-        else:
-            # No audience detected, prioritize general ads
-            if "age_group" in ad and ad["age_group"] == "all":
-                audience_score += 30
-            if "gender" in ad and ad["gender"] == "both":
-                audience_score += 10
+        # Age relevance
+        if "age_group" in ad and ad["age_group"] not in ["all", "any"]:
+            audience_age = audience_context.get("age_group", "all")
+            if ad["age_group"] != audience_age and audience_age != "all":
+                relevance *= 0.5  # Reduce relevance for age mismatch
         
-        # 3. Novelty score (0-20 points)
-        # Check if ad was recently shown
-        if ad["ad_id"] in [recent["ad_id"] for recent in self.recent_selections[-5:]]:
-            novelty_score = 0  # Ad was very recently shown
-        elif ad["ad_id"] in [recent["ad_id"] for recent in self.recent_selections[-10:-5]]:
-            novelty_score = 10  # Ad was shown a bit ago
-        else:
-            novelty_score = 20  # Ad hasn't been shown recently
-            
-        # 4. Apply rule-based adjustments
-        rule_multiplier = 1.0
-        for rule in self.rules:
-            rule_match = True
-            
-            # Check all rule conditions
-            for condition_key, condition_value in rule["conditions"].items():
-                if condition_key == "temperature" and "temperature_category" in weather_context:
-                    if weather_context["temperature_category"] != condition_value:
-                        rule_match = False
-                        break
-                elif condition_key == "weather" and "weather" in weather_context:
-                    if weather_context["weather"] != condition_value:
-                        rule_match = False
-                        break
-                elif condition_key == "audience_age" and "estimated_age_group" in audience_profile:
-                    audience_age = map_age_group(audience_profile["estimated_age_group"])
-                    if isinstance(condition_value, list):
-                        if audience_age not in condition_value and "all" not in condition_value:
-                            rule_match = False
-                            break
-                    elif audience_age != condition_value and condition_value != "all":
-                        rule_match = False
-                        break
-            
-            # Apply rule weight and priority if matched
-            if rule_match:
-                rule_multiplier = max(rule_multiplier, rule["weight"] * (rule["priority"] / 5))
+        # Gender relevance
+        if "gender" in ad and ad["gender"] not in ["both", "any", "all"]:
+            audience_gender = audience_context.get("gender", "both")
+            if ad["gender"] != audience_gender and audience_gender != "both":
+                relevance *= 0.5  # Reduce relevance for gender mismatch
         
-        # Calculate final score
-        # Weights: 40% weather, 40% audience, 20% novelty
-        base_score = (0.4 * weather_score) + (0.4 * audience_score) + (0.2 * novelty_score)
-        final_score = base_score * rule_multiplier
-        
-        logger.debug(f"Scored ad '{ad['title']}': {final_score} (W:{weather_score} A:{audience_score} N:{novelty_score} R:{rule_multiplier})")
-        
-        # Store these scores for displaying in selection feedback
-        ad['_score_details'] = {
-            'weather_score': weather_score,
-            'audience_score': audience_score,
-            'novelty_score': novelty_score,
-            'rule_multiplier': rule_multiplier
-        }
-        
-        return final_score
+        return relevance
     
-    def select_optimal_content(self, weather_context, audience_profile):
+    def calculate_environmental_relevance(self, ad, env_context):
         """
-        Select the optimal advertisement based on current conditions
+        Calculate how relevant an ad is for current environmental conditions
+        with strong emphasis on temperature matching
         
         Args:
-            weather_context (dict): Current environmental conditions
-            audience_profile (dict): Current audience demographics
+            ad (dict): Advertisement data
+            env_context (dict): Environmental context data
             
         Returns:
-            dict: The selected advertisement with score information
+            float: Relevance score (0.0-1.0)
         """
-        # Get all potentially matching ads
-        matching_ads = self.content_repository.get_matching_ads(weather_context, audience_profile)
+        relevance = 1.0  # Start with perfect relevance
         
-        # If no specific matches, get all ads
-        if not matching_ads:
-            matching_ads = self.content_repository.get_all_ads()
-            logger.info("No specific matches found, considering all ads")
+        # Temperature relevance - strict matching
+        if "temperature" in ad and ad["temperature"] not in ["any"]:
+            if ad["temperature"] != env_context["temperature_category"]:
+                relevance *= 0.2  # More severely reduce relevance for temperature mismatch
         
-        # Calculate scores for each ad
+        # Humidity relevance
+        if "humidity" in ad and ad["humidity"] not in ["any"]:
+            if ad["humidity"] != env_context["humidity_category"]:
+                relevance *= 0.7  # Slightly reduce relevance for humidity mismatch
+        
+        return relevance
+    
+    def update_ad_score(self, ad_id, display_timestamp=None):
+        """
+        Update the score of an ad after it's been displayed
+        
+        Args:
+            ad_id (str): Advertisement ID
+            display_timestamp (str, optional): Timestamp of the display
+        """
+        if not display_timestamp:
+            display_timestamp = datetime.now().isoformat()
+        
+        # Record this display in recent history
+        display_record = {
+            "ad_id": ad_id,
+            "timestamp": display_timestamp
+        }
+        self.recent_displays.append(display_record)
+        
+        # Trim history if needed
+        if len(self.recent_displays) > self.max_history_length:
+            self.recent_displays = self.recent_displays[-self.max_history_length:]
+        
+        # Increment this ad's score
+        self.ad_scores[ad_id] += 1.0
+        
+        # Decay all scores slightly (older displays matter less)
+        for ad in self.ad_scores:
+            if ad != ad_id:  # Don't decay the ad we just incremented
+                self.ad_scores[ad] = max(0, self.ad_scores[ad] - 0.05)
+        
+        # Save the updated history
+        self.save_display_history()
+    
+    def select_optimal_content(self):
+        """
+        Select the optimal advertisement based on score-based selection
+        with priority given to weather-matching ads and then audience when present
+        
+        Returns:
+            dict: The selected advertisement
+        """
+        # Get current contexts
+        env_context = self.get_environmental_context()
+        audience_context = self.get_audience_context()
+        
+        audience_present = audience_context.get('audience_present', False)
+        
+        logger.info(f"Current context - Temperature: {env_context['temperature_category']}, "
+                   f"Humidity: {env_context['humidity_category']}, "
+                   f"Audience: {audience_context['age_group'] if audience_present else 'None'}")
+        
+        # Get all ads from repository
+        all_ads = self.content_repository.get_all_ads()
+        
+        if not all_ads:
+            logger.warning("No advertisements available")
+            return None
+            
+        # First, filter ads by temperature match
+        temp_matching_ads = []
+        other_ads = []
+        
+        current_temp = env_context['temperature_category']
+        
+        for ad in all_ads:
+            # Check if ad has a specific temperature and if it matches current temperature
+            if "temperature" in ad and ad["temperature"] not in ["any"]:
+                if ad["temperature"] == current_temp:
+                    temp_matching_ads.append(ad)
+                else:
+                    other_ads.append(ad)
+            else:
+                # If ad doesn't specify temperature, consider it for any temperature
+                temp_matching_ads.append(ad)
+        
+        logger.info(f"Found {len(temp_matching_ads)} ads matching current temperature ({current_temp})")
+        
+        # If we don't have any temperature-matching ads, fall back to all ads
+        candidate_ads = temp_matching_ads if temp_matching_ads else all_ads
+        
+        # Calculate scores for each candidate ad
         scored_ads = []
-        for ad in matching_ads:
-            score = self.calculate_ad_score(ad, weather_context, audience_profile)
+        for ad in candidate_ads:
+            ad_id = ad["ad_id"]
+            
+            # Base score is the negative of current score (so lower scores are better)
+            base_score = -self.ad_scores.get(ad_id, 0)
+            
+            # Adjust score based on demographic relevance - more important when audience present
+            demographic_relevance = self.calculate_demographic_relevance(ad, audience_context)
+            
+            # Adjust score based on environmental relevance
+            environmental_relevance = self.calculate_environmental_relevance(ad, env_context)
+            
+            # Combined score (higher is better)
+            # When audience is present: 40% history, 40% demographic, 20% environmental
+            # When no audience: 50% history, 10% demographic, 40% environmental
+            if audience_present:
+                combined_score = (0.4 * base_score) + (0.4 * demographic_relevance) + (0.2 * environmental_relevance)
+            else:
+                combined_score = (0.5 * base_score) + (0.1 * demographic_relevance) + (0.4 * environmental_relevance)
+            
             scored_ads.append({
                 "ad": ad,
-                "score": score
+                "score": combined_score,
+                "history_score": base_score,
+                "demographic_relevance": demographic_relevance,
+                "environmental_relevance": environmental_relevance
             })
             
+            logger.debug(f"Ad {ad_id} ({ad['title']}) - Score: {combined_score:.2f} "
+                        f"(History: {base_score:.2f}, Demo: {demographic_relevance:.2f}, Env: {environmental_relevance:.2f})")
+        
         # Sort by score (highest first)
         scored_ads.sort(key=lambda x: x["score"], reverse=True)
         
-        # Select the highest scoring ad
-        if scored_ads:
-            selected = scored_ads[0]
-            
-            # Record this selection
-            selection_record = {
-                "timestamp": datetime.now().isoformat(),
-                "ad_id": selected["ad"]["ad_id"],
-                "title": selected["ad"]["title"],
-                "score": selected["score"],
-                "weather_context": weather_context,
-                "audience_profile": audience_profile
-            }
-            
-            # Update recent selections
-            self.recent_selections.append(selection_record)
-            if len(self.recent_selections) > 20:  # Keep only most recent 20
-                self.recent_selections.pop(0)
-                
-            logger.info(f"Selected ad: {selected['ad']['title']} (Score: {selected['score']:.2f})")
-            if '_score_details' in selected['ad']:
-                details = selected['ad']['_score_details']
-                logger.info(f"Selection factors - Weather: {details['weather_score']:.1f}, Audience: {details['audience_score']:.1f}, Novelty: {details['novelty_score']:.1f}, Rule multiplier: {details['rule_multiplier']:.1f}x")
-            
-            # Return full ad data with score
-            return {
-                "ad": selected["ad"],
-                "score": selected["score"],
-                "alternatives": [{"ad_id": a["ad"]["ad_id"], "title": a["ad"]["title"], "score": a["score"]} 
-                                for a in scored_ads[1:3]]  # Also include top 2 alternatives
-            }
-        else:
-            logger.warning("No suitable advertisements found")
+        # Get the top 3 ads to choose from (or fewer if we have less than 3)
+        top_count = min(3, len(scored_ads))
+        top_ads = scored_ads[:top_count]
+        
+        if top_count == 0:
+            logger.warning("No suitable ads found after filtering")
+            # Fall back to all ads if we filtered too aggressively
+            return self.select_random_ad()
+        
+        # Select one of the top ads with weighted probability
+        weights = [max(0.1, ad["score"] + 2) for ad in top_ads]  # Ensure positive weights
+        selected_index = random.choices(range(top_count), weights=weights, k=1)[0]
+        selected = top_ads[selected_index]
+        
+        # Update this ad's score
+        self.update_ad_score(selected["ad"]["ad_id"])
+        
+        logger.info(f"Selected ad: {selected['ad']['title']} (ID: {selected['ad']['ad_id']}), "
+                   f"Score: {selected['score']:.2f}")
+        logger.info(f"Selection factors - History: {selected['history_score']:.2f}, "
+                   f"Demographic: {selected['demographic_relevance']:.2f}, "
+                   f"Environmental: {selected['environmental_relevance']:.2f}")
+        
+        return selected["ad"]
+        
+    def select_random_ad(self):
+        """Fallback method to select a random ad when filtering is too restrictive"""
+        all_ads = self.content_repository.get_all_ads()
+        if not all_ads:
             return None
             
-    def record_performance(self, ad_id, metrics):
-        """
-        Record performance metrics for a displayed advertisement
+        # Exclude recently shown ads if possible
+        recent_ad_ids = [record["ad_id"] for record in self.recent_displays[-5:]] if self.recent_displays else []
+        fresh_ads = [ad for ad in all_ads if ad["ad_id"] not in recent_ad_ids]
         
-        Args:
-            ad_id (str): ID of the displayed advertisement
-            metrics (dict): Performance metrics (attention_time, audience_size_change, etc.)
-        """
-        if not self.recent_selections:
-            logger.warning(f"Can't record performance for ad {ad_id} - no recent selections")
-            return
-            
-        # Find this ad in recent selections
-        for selection in reversed(self.recent_selections):
-            if selection["ad_id"] == ad_id:
-                # Record performance
-                performance_record = {
-                    "timestamp": datetime.now().isoformat(),
-                    "ad_id": ad_id,
-                    "score_at_selection": selection["score"],
-                    "metrics": metrics,
-                    "weather_context": selection.get("weather_context", {}),
-                    "audience_profile": selection.get("audience_profile", {})
-                }
-                
-                self.performance_log.append(performance_record)
-                logger.info(f"Recorded performance for ad {ad_id}: {metrics}")
-                
-                # In a real system, this would be used to update ML models or rules
-                return
-                
-        logger.warning(f"Ad {ad_id} not found in recent selections")
-    
-    def update_rules(self, performance_data=None):
-        """
-        Update decision rules based on performance data
+        # Use fresh ads if available, otherwise use all ads
+        candidate_ads = fresh_ads if fresh_ads else all_ads
         
-        Args:
-            performance_data (list, optional): External performance data to incorporate
-        """
-        # In a real system, this would analyze past performance and adjust rules
-        # For this simulation, we'll just log that it happened
-        data_source = performance_data if performance_data else self.performance_log
-        logger.info(f"Updating rules based on {len(data_source)} performance records")
+        # Select a random ad
+        selected_ad = random.choice(candidate_ads)
         
-        # Here you would implement ML to adjust rule weights and priorities
-        # For simulation, we'll just make small random adjustments
-        for rule in self.rules:
-            # Small random adjustment to weight (±10%)
-            adjustment = random.uniform(-0.1, 0.1)
-            rule["weight"] = max(0.5, min(2.0, rule["weight"] + adjustment))
-            logger.debug(f"Adjusted rule {rule['id']} weight to {rule['weight']:.2f}")
+        # Update this ad's score
+        self.update_ad_score(selected_ad["ad_id"])
+        
+        logger.info(f"Randomly selected ad: {selected_ad['title']} (ID: {selected_ad['ad_id']})")
+        
+        return selected_ad

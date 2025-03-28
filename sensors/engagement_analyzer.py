@@ -66,6 +66,7 @@ def calculate_engagement(face_data):
     dy = face_data['last_centroid'][1] - face_data['initial_centroid'][1]
     movement = np.sqrt(dx**2 + dy**2)
     # Engagement requires sufficient duration and limited movement
+    print(f"Duration: {duration:.1f}s | Movement: {movement:.1f}px | Engaged: {duration >= ENGAGEMENT_THRESHOLD and movement <= STABILITY_THRESHOLD}")
     return duration >= ENGAGEMENT_THRESHOLD and movement <= STABILITY_THRESHOLD
 
 def process_face(face_img):

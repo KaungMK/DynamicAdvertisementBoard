@@ -6,7 +6,6 @@ import json
 import random
 import logging
 from datetime import datetime
-from mock_data import map_age_group, map_gender
 
 # Configure logging
 logging.basicConfig(

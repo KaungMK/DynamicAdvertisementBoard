@@ -1,0 +1,4 @@
+opencv-python
+dlib
+numpy
+tensorflow==2.15.0

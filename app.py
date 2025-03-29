@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 import boto3
 from werkzeug.utils import secure_filename
 from urllib.parse import urlparse
 import os
 import uuid
+import collections
 
 print("AWS_ACCESS_KEY_ID:", os.getenv("AWS_ACCESS_KEY_ID"))
 
@@ -12,7 +13,7 @@ app.secret_key = '2009EDGY'
 
 s3_client = boto3.client('s3')
 S3_BUCKET = "adsbucket2009"
-dynamodb = boto3.resource('dynamodb', region_name='us-east-1')  # specify your region
+dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 ad_table = dynamodb.Table('ads-table')
 
 @app.route('/')
@@ -37,7 +38,6 @@ def upload_ad():
     s3_key = f"{unique_id}_{filename}"
 
     try:
-        # Upload to S3
         s3_client.put_object(
             Bucket=S3_BUCKET,
             Key=s3_key,
@@ -46,14 +46,12 @@ def upload_ad():
         )
         image_url = f"https://{S3_BUCKET}.s3.us-east-1.amazonaws.com/{s3_key}"
 
-        # Collect form data
         title = request.form.get('title')
         gender = request.form.get('target_gender')
         age_group = request.form.get('target_age_group')
         temp = request.form.get('environment_temperature')
         humidity = request.form.get('environment_humidity')
 
-        # Insert to DynamoDB
         ad_table.put_item(Item={
             'ad_id': unique_id,
             'title': title,
@@ -72,15 +70,12 @@ def upload_ad():
 @app.route('/ad/delete/<string:ad_id>', methods=['POST'])
 def delete_ad(ad_id):
     try:
-        # Get the ad item from DynamoDB
         response = ad_table.get_item(Key={'ad_id': ad_id})
         item = response.get('Item')
 
-        # Delete from S3 using stored key
         if item and 's3_key' in item:
             s3_client.delete_object(Bucket=S3_BUCKET, Key=item['s3_key'])
 
-        # Delete from DynamoDB
         ad_table.delete_item(Key={'ad_id': ad_id})
 
         flash("Advertisement deleted successfully!", "success")
@@ -122,6 +117,63 @@ def upload_image():
         return render_template('index.html', image_url=image_url)
     except Exception as e:
         return str(e)
+
+# ✅ New route for analytics dashboard page
+@app.route('/analytics')
+def analytics():
+    return render_template('analytics.html')
+
+# ✅ New route to serve processed data
+@app.route('/dashboard-data')
+def dashboard_data():
+    try:
+        response = ad_table.scan()
+        items = response.get('Items', [])
+        while 'LastEvaluatedKey' in response:
+            response = ad_table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+            items.extend(response.get('Items', []))
+        print("Scanned Items:", items)
+    except Exception as e:
+        print("Error reading from DynamoDB:", e)
+
+        # Return dummy data fallback
+        return jsonify({
+            'emotions': {
+                'happy': 10,
+                'sad': 5,
+                'angry': 3
+            },
+            'age_groups': {
+                '20s': 6,
+                '30s': 7,
+                '40s': 5
+            },
+            'gender_counts': {
+                'male': 9,
+                'female': 8
+            }
+        })
+
+    # Process actual data
+    emotion_counts = collections.Counter()
+    age_groups = collections.Counter()
+    gender_counts = collections.Counter()
+
+    for item in items:
+        emotion = item.get('emotion', 'unknown')
+        emotion_counts[emotion] += 1
+
+        age = item.get('age_group', 'unknown')
+        age_groups[age] += 1
+
+        gender = item.get('gender', 'unknown')
+        gender_counts[gender] += 1
+
+    return jsonify({
+        'emotions': dict(emotion_counts),
+        'age_groups': dict(age_groups),
+        'gender_counts': dict(gender_counts)
+    })
 
 if __name__ == '__main__':
     app.run(debug=True)

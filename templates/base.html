@@ -1,0 +1,35 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}My Dashboard{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sb-admin-2.min.css') }}">
+  <script src="{{ url_for('static', filename='vendor/chart.js/chart.js') }}"></script>
+  <style>
+    body {
+      background-color: #f8f9fc;
+      padding-top: 70px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 🔝 Navbar -->
+  <nav class="navbar navbar-expand navbar-light bg-white topbar static-top shadow fixed-top">
+    <a class="navbar-brand" href="/">MyAdBoard</a>
+
+    <!-- Add more nav items here if needed -->
+    <ul class="navbar-nav ml-auto">
+      <li class="nav-item"><a class="nav-link" href="/ad">Ads</a></li>
+      <li class="nav-item"><a class="nav-link" href="/analytics">Analytics</a></li>
+    </ul>
+  </nav>
+
+  <!-- 🧱 Page Content -->
+  <div class="container-fluid">
+    {% block content %}{% endblock %}
+  </div>
+
+</body>
+</html>

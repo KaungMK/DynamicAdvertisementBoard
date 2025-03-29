@@ -1,0 +1,109 @@
+<!-- templates/analytics.html -->
+{% extends "base.html" %}
+
+{% block title %}Analytics{% endblock %}
+
+{% block content %}
+<h2 class="text-center mb-4">Real-Time Analytics Dashboard</h2>
+
+<div class="row">
+  <div class="col-lg-6 mb-4">
+    <div class="card shadow">
+      <div class="card-body">
+        <h5 class="card-title">Emotion Distribution</h5>
+        <canvas id="emotionChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6 mb-4">
+    <div class="card shadow">
+      <div class="card-body">
+        <h5 class="card-title">Age Group Distribution</h5>
+        <canvas id="ageChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6 mb-4">
+    <div class="card shadow">
+      <div class="card-body">
+        <h5 class="card-title">Gender Breakdown</h5>
+        <canvas id="genderChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6 mb-4">
+    <div class="card shadow">
+      <div class="card-body">
+        <h5 class="card-title">Engagement Over Time</h5>
+        <canvas id="engagementChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  async function loadDashboardData() {
+    const res = await fetch("/dashboard-data");
+    const data = await res.json();
+
+    const emotions = Object.keys(data.emotions || {});
+    const emotionCounts = Object.values(data.emotions || {});
+    const ageGroups = Object.keys(data.age_groups || {});
+    const ageCounts = Object.values(data.age_groups || {});
+    const genders = Object.keys(data.gender_counts || {});
+    const genderCounts = Object.values(data.gender_counts || {});
+
+    new Chart(document.getElementById("emotionChart"), {
+      type: "bar",
+      data: {
+        labels: emotions,
+        datasets: [{
+          label: "Emotions",
+          data: emotionCounts,
+          backgroundColor: "#556ee6"
+        }]
+      }
+    });
+
+    new Chart(document.getElementById("ageChart"), {
+      type: "pie",
+      data: {
+        labels: ageGroups,
+        datasets: [{
+          label: "Age Groups",
+          data: ageCounts,
+          backgroundColor: ["#f46a6a", "#34c38f", "#f1b44c", "#50a5f1"]
+        }]
+      }
+    });
+
+    new Chart(document.getElementById("genderChart"), {
+      type: "doughnut",
+      data: {
+        labels: genders,
+        datasets: [{
+          label: "Genders",
+          data: genderCounts,
+          backgroundColor: ["#00bcd4", "#e91e63", "#9e9e9e"]
+        }]
+      }
+    });
+
+    new Chart(document.getElementById("engagementChart"), {
+      type: "line",
+      data: {
+        labels: ["10am", "11am", "12pm", "1pm", "2pm"],
+        datasets: [{
+          label: "Engagement (Mock)",
+          data: [3, 5, 8, 4, 6],
+          borderColor: "#6f42c1",
+          fill: false,
+          tension: 0.3
+        }]
+      }
+    });
+  }
+
+  loadDashboardData();
+</script>
+{% endblock %}

@@ -144,7 +144,7 @@ class SmartAdDisplay:
         self.start_auto_cycle()
     
     def create_layout(self):
-        """Create the display layout with persistent sensor information"""
+        """Create the display layout with scrollable sensor information"""
         # Create a header frame for sensor information - increased height further
         self.header_frame = tk.Frame(self.root, bg="black", height=170)
         self.header_frame.pack(side="top", fill="x")
@@ -181,23 +181,40 @@ class SmartAdDisplay:
         data_container = tk.Frame(self.header_frame, bg="black")
         data_container.pack(fill="both", expand=True, padx=30, pady=10)
         
-        # Left side frame for environment data (fixed width)
-        self.env_frame = tk.Frame(data_container, bg="black", width=450)
-        self.env_frame.pack(side="left", fill="both", padx=20)
-        self.env_frame.pack_propagate(False)  # Keep fixed width
+        # LEFT SIDE - Environment Data with Scrollbar
+        env_container = tk.Frame(data_container, bg="black", width=450)
+        env_container.pack(side="left", fill="both", padx=20)
+        env_container.pack_propagate(False)  # Keep fixed width
         
-        # Environment data labels
+        # Environment data header
         self.env_header = tk.Label(
-            self.env_frame,
+            env_container,
             text="ENVIRONMENT DATA",
             bg="black",
             fg="white",
             font=("Arial", 14, "bold")
         )
-        self.env_header.pack(anchor="w", pady=(0, 15))
+        self.env_header.pack(anchor="w", pady=(0, 10))
         
+        # Create scrollable frame for environment data
+        env_canvas = tk.Canvas(env_container, bg="black", highlightthickness=0)
+        env_scrollbar = ttk.Scrollbar(env_container, orient="vertical", command=env_canvas.yview)
+        env_scrollable_frame = tk.Frame(env_canvas, bg="black")
+        
+        env_scrollable_frame.bind(
+            "<Configure>",
+            lambda e: env_canvas.configure(scrollregion=env_canvas.bbox("all"))
+        )
+        
+        env_canvas.create_window((0, 0), window=env_scrollable_frame, anchor="nw")
+        env_canvas.configure(yscrollcommand=env_scrollbar.set)
+        
+        env_canvas.pack(side="left", fill="both", expand=True)
+        env_scrollbar.pack(side="right", fill="y")
+        
+        # Environment data label inside scrollable frame
         self.env_label = tk.Label(
-            self.env_frame,
+            env_scrollable_frame,
             text="Waiting for sensor data...",
             bg="black",
             fg="yellow",
@@ -206,25 +223,42 @@ class SmartAdDisplay:
             wraplength=400,  # Prevent text from being cut off
             anchor="w"       # Left-align text
         )
-        self.env_label.pack(anchor="w", fill="both")
+        self.env_label.pack(anchor="w", fill="both", expand=True)
         
-        # Right side frame for audience data (fixed width)
-        self.audience_frame = tk.Frame(data_container, bg="black", width=450)
-        self.audience_frame.pack(side="right", fill="both", padx=20)
-        self.audience_frame.pack_propagate(False)  # Keep fixed width
+        # RIGHT SIDE - Audience Data with Scrollbar
+        audience_container = tk.Frame(data_container, bg="black", width=450)
+        audience_container.pack(side="right", fill="both", padx=20)
+        audience_container.pack_propagate(False)  # Keep fixed width
         
-        # Audience data labels
+        # Audience data header
         self.audience_header = tk.Label(
-            self.audience_frame,
+            audience_container,
             text="AUDIENCE DATA",
             bg="black",
             fg="white",
             font=("Arial", 14, "bold")
         )
-        self.audience_header.pack(anchor="w", pady=(0, 15))
+        self.audience_header.pack(anchor="w", pady=(0, 10))
         
+        # Create scrollable frame for audience data
+        audience_canvas = tk.Canvas(audience_container, bg="black", highlightthickness=0)
+        audience_scrollbar = ttk.Scrollbar(audience_container, orient="vertical", command=audience_canvas.yview)
+        audience_scrollable_frame = tk.Frame(audience_canvas, bg="black")
+        
+        audience_scrollable_frame.bind(
+            "<Configure>",
+            lambda e: audience_canvas.configure(scrollregion=audience_canvas.bbox("all"))
+        )
+        
+        audience_canvas.create_window((0, 0), window=audience_scrollable_frame, anchor="nw")
+        audience_canvas.configure(yscrollcommand=audience_scrollbar.set)
+        
+        audience_canvas.pack(side="left", fill="both", expand=True)
+        audience_scrollbar.pack(side="right", fill="y")
+        
+        # Audience data label inside scrollable frame
         self.audience_label = tk.Label(
-            self.audience_frame,
+            audience_scrollable_frame,
             text="Waiting for audience data...",
             bg="black",
             fg="yellow",
@@ -233,7 +267,19 @@ class SmartAdDisplay:
             wraplength=400,  # Prevent text from being cut off
             anchor="w"       # Left-align text
         )
-        self.audience_label.pack(anchor="w", fill="both")
+        self.audience_label.pack(anchor="w", fill="both", expand=True)
+        
+        # Configure mouse wheel scrolling for both canvases
+        def bind_mousewheel(event, canvas):
+            canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(-1*(e.delta//120), "units"))
+        
+        def unbind_mousewheel(event):
+            canvas.unbind_all("<MouseWheel>")
+        
+        env_canvas.bind("<Enter>", lambda e: bind_mousewheel(e, env_canvas))
+        env_canvas.bind("<Leave>", unbind_mousewheel)
+        audience_canvas.bind("<Enter>", lambda e: bind_mousewheel(e, audience_canvas))
+        audience_canvas.bind("<Leave>", unbind_mousewheel)
         
         # Separator line between header and content
         separator = tk.Frame(self.root, height=2, bg="gray")

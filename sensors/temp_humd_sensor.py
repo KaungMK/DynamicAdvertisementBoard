@@ -109,8 +109,8 @@ def predict_weather(dht_temp, dht_humidity, api_temp, api_humidity, api_pressure
     return "Unknown"
 
 # Settings
-SENSOR_READ_INTERVAL = 2  # Collect data every 2 sec
-AVG_PERIOD = 30  # Average over 30 seconds
+SENSOR_READ_INTERVAL = 1  # Collect data every 1 sec (reduced from 2)
+AVG_PERIOD = 5  # Average over 5 seconds (reduced from 30)
 API_UPDATE_INTERVAL = 300  # Fetch API data every 5 minutes (300 seconds)
 
 last_api_update = 0

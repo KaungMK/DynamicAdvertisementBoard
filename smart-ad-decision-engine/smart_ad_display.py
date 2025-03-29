@@ -83,7 +83,7 @@ class AWSContentRepository:
             return None
 
 class SmartAdDisplay:
-    def __init__(self, root, env_data_file="weather_data.json", audience_data_file="engagement_data.json"):
+    def __init__(self, root, env_data_file, audience_data_file):
         self.root = root
         self.root.title("Smart Advertisement Board")
         
@@ -130,6 +130,8 @@ class SmartAdDisplay:
         
         # Bind escape key to exit full screen
         self.root.bind("<Escape>", self.exit_fullscreen)
+        self.root.bind("<Control-q>", lambda event: self.on_closing())
+        self.root.bind("<Control-c>", lambda event: self.on_closing())
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         
         # Start sensor processes
@@ -146,10 +148,10 @@ class SmartAdDisplay:
         # Create a header frame for sensor information - increased height further
         self.header_frame = tk.Frame(self.root, bg="black", height=170)
         self.header_frame.pack(side="top", fill="x")
-    
+        
         # Make the header frame maintain its height
         self.header_frame.pack_propagate(False)
-    
+        
         # Add close button in the top-right corner
         close_button = tk.Button(
             self.header_frame, 
@@ -164,7 +166,7 @@ class SmartAdDisplay:
             bd=3
         )
         close_button.place(x=self.root.winfo_screenwidth()-50, y=5)
-    
+        
         # Add keyboard shortcut instructions
         shortcut_label = tk.Label(
             self.header_frame,
@@ -174,18 +176,14 @@ class SmartAdDisplay:
             font=("Arial", 8)
         )
         shortcut_label.place(x=self.root.winfo_screenwidth()-150, y=45)
-    
-        # Bind additional keyboard shortcuts
-        self.root.bind("<Control-q>", lambda event: self.on_closing())
-        self.root.bind("<Control-c>", lambda event: self.on_closing())
-    
+        
         # Top spacer
         tk.Frame(self.header_frame, height=5, bg="black").pack(fill="x")
-    
+        
         # Left side frame for environment data
         self.env_frame = tk.Frame(self.header_frame, bg="black")
         self.env_frame.pack(side="left", fill="both", expand=True, padx=20)
-    
+        
         # Environment data labels
         self.env_header = tk.Label(
             self.env_frame,
@@ -195,7 +193,7 @@ class SmartAdDisplay:
             font=("Arial", 14, "bold")
         )
         self.env_header.pack(anchor="w", pady=(5, 10))
-    
+        
         self.env_label = tk.Label(
             self.env_frame,
             text="Waiting for sensor data...",
@@ -206,11 +204,11 @@ class SmartAdDisplay:
             wraplength=400  # Prevent text from being cut off
         )
         self.env_label.pack(anchor="w", pady=5, fill="both", expand=True)
-    
+        
         # Right side frame for audience data
         self.audience_frame = tk.Frame(self.header_frame, bg="black")
         self.audience_frame.pack(side="right", fill="both", expand=True, padx=20)
-    
+        
         # Audience data labels
         self.audience_header = tk.Label(
             self.audience_frame,
@@ -220,7 +218,7 @@ class SmartAdDisplay:
             font=("Arial", 14, "bold")
         )
         self.audience_header.pack(anchor="w", pady=(5, 10))
-    
+        
         self.audience_label = tk.Label(
             self.audience_frame,
             text="Waiting for audience data...",
@@ -231,30 +229,30 @@ class SmartAdDisplay:
             wraplength=400  # Prevent text from being cut off
         )
         self.audience_label.pack(anchor="w", pady=5, fill="both", expand=True)
-    
+        
         # Separator line between header and content
         separator = tk.Frame(self.root, height=2, bg="gray")
         separator.pack(fill="x", padx=10)
-    
+        
         # Main frame for ad display
         self.ad_frame = tk.Frame(self.root, bg="black")
         self.ad_frame.pack(expand=True, fill="both")
-    
+        
         # Label to display the ad image
         self.ad_image_label = tk.Label(self.ad_frame, bg="black")
         self.ad_image_label.pack(expand=True, fill="both", pady=10)
-    
+        
         # Separator line between content and footer
         separator2 = tk.Frame(self.root, height=2, bg="gray")
         separator2.pack(fill="x", padx=10)
-    
+        
         # Footer frame for ad information - increased height
         self.footer_frame = tk.Frame(self.root, bg="black", height=80)
         self.footer_frame.pack(side="bottom", fill="x")
-    
+        
         # Make the footer frame maintain its height
         self.footer_frame.pack_propagate(False)
-    
+        
         # Label to show ad info at the bottom
         self.ad_info_label = tk.Label(
             self.footer_frame, 
@@ -269,36 +267,35 @@ class SmartAdDisplay:
     def start_sensor_processes(self):
         """Start the temperature/humidity sensor and engagement analyzer processes"""
         try:
-            # Get the directory of the current script
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-        
-            # Construct paths to sensor directory
-            sensors_dir = os.path.join(base_dir, "sensors")
-        
+            # Use the correct path for sensor scripts
+            sensors_dir = "/home/EDGY/Documents/DynamicAdvertisementBoard/sensors"
+            
             # Start the temperature/humidity sensor process
             sensor_script = os.path.join(sensors_dir, "temp_humd_sensor.py")
             if os.path.exists(sensor_script):
                 logger.info(f"Starting temperature/humidity sensor at {sensor_script}")
                 # Use Popen to run the script in the background
                 self.sensor_process = subprocess.Popen([sys.executable, sensor_script], 
-                                                  stdout=subprocess.PIPE, 
-                                                  stderr=subprocess.PIPE)
+                                                      stdout=subprocess.PIPE, 
+                                                      stderr=subprocess.PIPE,
+                                                      cwd=sensors_dir)  # Run in sensors directory
                 logger.info(f"Temperature/humidity sensor started with PID {self.sensor_process.pid}")
             else:
                 logger.error(f"Temperature/humidity sensor script not found at {sensor_script}")
-        
+            
             # Start the engagement analyzer process
             engagement_script = os.path.join(sensors_dir, "engagement_analyzer.py")
             if os.path.exists(engagement_script):
                 logger.info(f"Starting engagement analyzer at {engagement_script}")
                 # Use Popen to run the script in the background
                 self.engagement_process = subprocess.Popen([sys.executable, engagement_script],
-                                                     stdout=subprocess.PIPE,
-                                                     stderr=subprocess.PIPE)
+                                                         stdout=subprocess.PIPE,
+                                                         stderr=subprocess.PIPE,
+                                                         cwd=sensors_dir)  # Run in sensors directory
                 logger.info(f"Engagement analyzer started with PID {self.engagement_process.pid}")
             else:
                 logger.error(f"Engagement analyzer script not found at {engagement_script}")
-            
+                
         except Exception as e:
             logger.error(f"Error starting sensor processes: {e}")
     
@@ -316,12 +313,18 @@ class SmartAdDisplay:
         
         # Terminate sensor processes
         if self.sensor_process:
-            logger.info(f"Terminating temperature/humidity sensor process (PID {self.sensor_process.pid})")
-            self.sensor_process.terminate()
+            try:
+                logger.info(f"Terminating temperature/humidity sensor process (PID {self.sensor_process.pid})")
+                self.sensor_process.terminate()
+            except Exception as e:
+                logger.error(f"Error terminating sensor process: {e}")
             
         if self.engagement_process:
-            logger.info(f"Terminating engagement analyzer process (PID {self.engagement_process.pid})")
-            self.engagement_process.terminate()
+            try:
+                logger.info(f"Terminating engagement analyzer process (PID {self.engagement_process.pid})")
+                self.engagement_process.terminate()
+            except Exception as e:
+                logger.error(f"Error terminating engagement process: {e}")
             
         # Destroy the window
         self.root.destroy()
@@ -534,28 +537,33 @@ class SmartAdDisplay:
 
 def main():
     """Main function to run the advertisement display"""
-    # Create absolute paths to your data files
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    sensors_dir = os.path.join(base_dir, "sensors")
-    
-    # Use the correct JSON file paths
-    env_data_file = os.path.join(sensors_dir, "latest_api_data.json")
+    # Create absolute paths to your data files - using the correct paths
+    sensors_dir = "/home/EDGY/Documents/DynamicAdvertisementBoard/sensors"
+    env_data_file = os.path.join(sensors_dir, "weather_data.json")
     audience_data_file = os.path.join(sensors_dir, "engagement_data.json")
     
-    # Check if files exist, create them if they don't
+    # Create empty files if they don't exist
     for file_path in [env_data_file, audience_data_file]:
-        dir_path = os.path.dirname(file_path)
-        os.makedirs(dir_path, exist_ok=True)
-        
         if not os.path.exists(file_path):
-            with open(file_path, 'w') as f:
-                if "weather" in file_path:
-                    # Create empty weather data file
-                    f.write("[]")
-                else:
-                    # Create empty audience data file
-                    f.write('{"audience": [], "count": 0}')
-            logger.info(f"Created empty data file at {file_path}")
+            dirname = os.path.dirname(file_path)
+            if not os.path.exists(dirname):
+                try:
+                    os.makedirs(dirname)
+                    logger.info(f"Created directory: {dirname}")
+                except Exception as e:
+                    logger.error(f"Error creating directory {dirname}: {e}")
+            
+            try:
+                with open(file_path, 'w') as f:
+                    if "weather_data" in file_path:
+                        # Create empty weather data file
+                        f.write("[]")
+                    else:
+                        # Create empty audience data file
+                        f.write('{"audience": [], "count": 0}')
+                logger.info(f"Created empty data file at {file_path}")
+            except Exception as e:
+                logger.error(f"Error creating file {file_path}: {e}")
     
     # Initialize the application with the absolute paths
     root = tk.Tk()
@@ -571,14 +579,8 @@ def main():
                        env_data_file=env_data_file, 
                        audience_data_file=audience_data_file)
     
-    # Start sensor processes after UI is set up
-    app.start_sensor_processes()
-    
-    # Start sensor tracking
-    app.start_sensor_tracking()
-    
-    # Start auto-cycling ads immediately
-    app.start_auto_cycle()
-    
     # Enter the main loop
     root.mainloop()
+
+if __name__ == "__main__":
+    main()

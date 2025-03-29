@@ -1,5 +1,6 @@
 """
 Enhanced Decision Engine with integration for new sensor data formats
+and support for checking JSON files every 5 seconds
 """
 
 import json
@@ -51,6 +52,10 @@ class ContentDecisionEngine:
         # Track file modification times for watchdog functionality
         self.env_file_last_modified = 0
         self.audience_file_last_modified = 0
+        
+        # Track last file check time for periodic updates
+        self.last_env_check_time = 0
+        self.last_audience_check_time = 0
         
         # Load existing history if available
         self.load_display_history()
@@ -148,9 +153,13 @@ class ContentDecisionEngine:
             logger.error(f"Error checking audience file: {e}")
             return False
             
-    def get_latest_weather_data(self):
+    def get_latest_weather_data(self, skip_check=False):
         """
         Read the latest data from the weather sensor file
+        
+        Args:
+            skip_check (bool): If True, skip checking if file has been modified
+                              and always read the file
         
         Returns:
             dict: Latest weather data entry or default values if unavailable
@@ -162,10 +171,10 @@ class ContentDecisionEngine:
                 return None
             
             # Check if we need to read the file or can use cached data
-            if self.cached_env_data and not self.check_env_file_updated():
+            if not skip_check and self.cached_env_data and not self.check_env_file_updated():
                 return self.cached_env_data
                 
-            # File exists and has changed, try to read it
+            # File exists and has changed (or skip_check is True), try to read it
             with open(self.env_data_file, 'r') as f:
                 data = json.load(f)
                 
@@ -193,9 +202,13 @@ class ContentDecisionEngine:
             logger.error(f"Error reading weather data: {e}")
             return None
     
-    def get_latest_audience_data(self):
+    def get_latest_audience_data(self, skip_check=False):
         """
         Read the latest data from the engagement analyzer file
+        
+        Args:
+            skip_check (bool): If True, skip checking if file has been modified
+                              and always read the file
         
         Returns:
             dict: Latest audience data or default values if unavailable
@@ -207,10 +220,10 @@ class ContentDecisionEngine:
                 return None
                 
             # Check if we need to read the file or can use cached data
-            if self.cached_audience_data and not self.check_audience_file_updated():
+            if not skip_check and self.cached_audience_data and not self.check_audience_file_updated():
                 return self.cached_audience_data
                 
-            # File exists and has changed, try to read it
+            # File exists and has changed (or skip_check is True), try to read it
             with open(self.audience_data_file, 'r') as f:
                 data = json.load(f)
                 
@@ -264,14 +277,17 @@ class ContentDecisionEngine:
             logger.error(f"Error reading audience data: {e}")
             return None
     
-    def get_environmental_context(self):
+    def get_environmental_context(self, skip_check=False):
         """
         Create environmental context using real sensor data
+        
+        Args:
+            skip_check (bool): If True, force read the file even if it hasn't changed
         
         Returns:
             dict: Environmental context with categorized values
         """
-        weather_data = self.get_latest_weather_data()
+        weather_data = self.get_latest_weather_data(skip_check=skip_check)
         
         if not weather_data:
             # Default values if no sensor data available
@@ -321,14 +337,17 @@ class ContentDecisionEngine:
         
         return env_context
     
-    def get_audience_context(self):
+    def get_audience_context(self, skip_check=False):
         """
         Create audience context using engagement analyzer data
+        
+        Args:
+            skip_check (bool): If True, force read the file even if it hasn't changed
         
         Returns:
             dict: Audience context with demographic information
         """
-        audience_data = self.get_latest_audience_data()
+        audience_data = self.get_latest_audience_data(skip_check=skip_check)
         
         if not audience_data:
             # Default values if no audience data available
@@ -451,17 +470,20 @@ class ContentDecisionEngine:
         # Save the updated history
         self.save_display_history()
     
-    def select_optimal_content(self):
+    def select_optimal_content(self, force_update=False):
         """
         Select the optimal advertisement based on score-based selection
         with priority given to weather-matching ads and then audience when present
         
+        Args:
+            force_update (bool): If True, force read data files even if they haven't changed
+        
         Returns:
             dict: The selected advertisement
         """
-        # Get current contexts
-        env_context = self.get_environmental_context()
-        audience_context = self.get_audience_context()
+        # Get current contexts with the option to force update
+        env_context = self.get_environmental_context(skip_check=force_update)
+        audience_context = self.get_audience_context(skip_check=force_update)
         
         audience_present = audience_context.get('audience_present', False)
         

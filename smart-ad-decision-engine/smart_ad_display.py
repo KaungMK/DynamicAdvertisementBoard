@@ -272,16 +272,15 @@ class SmartAdDisplay:
         # Configure mouse wheel scrolling for both canvases
         def bind_mousewheel(event, canvas):
             canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(-1*(e.delta//120), "units"))
-
-        def unbind_mousewheel(event):
-            # The issue is here - we need to know which canvas to unbind from
-            event.widget.unbind_all("<MouseWheel>")  # Use event.widget instead of canvas
-
+        
+        def unbind_mousewheel(event, canvas):
+            canvas.unbind_all("<MouseWheel>")
+        
         env_canvas.bind("<Enter>", lambda e: bind_mousewheel(e, env_canvas))
-        env_canvas.bind("<Leave>", unbind_mousewheel)
+        env_canvas.bind("<Leave>", lambda e: unbind_mousewheel(e, env_canvas))
         audience_canvas.bind("<Enter>", lambda e: bind_mousewheel(e, audience_canvas))
-        audience_canvas.bind("<Leave>", unbind_mousewheel)
-
+        audience_canvas.bind("<Leave>", lambda e: unbind_mousewheel(e, audience_canvas))
+        
         # Separator line between header and content
         separator = tk.Frame(self.root, height=2, bg="gray")
         separator.pack(fill="x", padx=0)
@@ -420,8 +419,9 @@ class SmartAdDisplay:
     def sensor_update_thread_func(self):
         """Thread function to continuously update sensor information"""
         while not self.stop_thread:
-            self.update_sensor_display()
-            time.sleep(2)  # Update every 2 seconds
+            # Always update data from files every 5 seconds
+            self.update_sensor_display(force_update=True)
+            time.sleep(5)  # Update every 5 seconds
     
     def auto_cycle_thread(self):
         """Thread function for automatic cycling of advertisements"""
@@ -435,19 +435,15 @@ class SmartAdDisplay:
                     break
                 time.sleep(0.1)
     
-    def update_sensor_display(self):
+    def update_sensor_display(self, force_update=False):
         """Update the sensor data display with current readings"""
         try:
-            # Check if files have been modified before reading them
-            env_updated = self.decision_engine.check_env_file_updated()
-            audience_updated = self.decision_engine.check_audience_file_updated()
-            
             update_needed = False
             
-            # Only update environmental data if file has changed
-            if env_updated:
-                # Get environmental context
-                env_context = self.decision_engine.get_environmental_context()
+            # If force_update is True, skip checking if files have been modified
+            if force_update:
+                # Always update both environmental and audience data
+                env_context = self.decision_engine.get_environmental_context(skip_check=True)
                 
                 # Format environmental data display with better spacing and abbreviated timestamp
                 env_text = f"Temperature:  {env_context['temperature']:.1f}°C  ({env_context['temperature_category']})\n\n"
@@ -467,15 +463,11 @@ class SmartAdDisplay:
                 
                 # Update the display
                 self.env_label.config(text=env_text)
-                update_needed = True
-                logger.info("Environmental data updated based on file changes")
-            
-            # Only update audience data if file has changed
-            if audience_updated:
-                # Get audience context
-                audience_context = self.decision_engine.get_audience_context()
                 
-                # Format audience data display with better spacing and abbreviated timestamp
+                # Get audience context
+                audience_context = self.decision_engine.get_audience_context(skip_check=True)
+                
+                # Format audience data display
                 if audience_context['audience_present']:
                     audience_text = f"Present:  Yes\n\n"
                     if 'count' in audience_context:
@@ -486,14 +478,13 @@ class SmartAdDisplay:
                     audience_text += f"Gender:  {audience_context['gender']}\n\n"
                     if 'emotion' in audience_context:
                         audience_text += f"Emotion:  {audience_context['emotion']}\n\n"
-                    # Abbreviate timestamp to prevent it from being too long
+                    # Abbreviate timestamp
                     timestamp = audience_context['timestamp']
-                    if len(timestamp) > 19:  # If it has more than just date and time
-                        timestamp = timestamp[:19]  # Keep only the date and time part
+                    if len(timestamp) > 19:
+                        timestamp = timestamp[:19]
                     audience_text += f"Timestamp:  {timestamp}"
                 else:
                     audience_text = "Present:  No\n\n"
-                    # Abbreviate timestamp to prevent it from being too long
                     timestamp = audience_context['timestamp']
                     if len(timestamp) > 19:
                         timestamp = timestamp[:19]
@@ -502,7 +493,71 @@ class SmartAdDisplay:
                 # Update the display
                 self.audience_label.config(text=audience_text)
                 update_needed = True
-                logger.info("Audience data updated based on file changes")
+                
+            else:
+                # Original logic with file change detection
+                env_updated = self.decision_engine.check_env_file_updated()
+                audience_updated = self.decision_engine.check_audience_file_updated()
+                
+                # Only update environmental data if file has changed
+                if env_updated:
+                    # Get environmental context
+                    env_context = self.decision_engine.get_environmental_context()
+                    
+                    # Format environmental data display with better spacing and abbreviated timestamp
+                    env_text = f"Temperature:  {env_context['temperature']:.1f}°C  ({env_context['temperature_category']})\n\n"
+                    env_text += f"Humidity:  {env_context['humidity']:.1f}%  ({env_context['humidity_category']})\n\n"
+                    
+                    # Check if 'predicted_weather' is in the context and add it
+                    if 'predicted_weather' in env_context:
+                        env_text += f"Weather:  {env_context['predicted_weather']}\n\n"
+                    else:
+                        env_text += f"Weather:  Unknown\n\n"
+                        
+                    # Abbreviate timestamp to prevent it from being too long
+                    timestamp = env_context['timestamp']
+                    if len(timestamp) > 19:  # If it has more than just date and time
+                        timestamp = timestamp[:19]  # Keep only the date and time part
+                    env_text += f"Timestamp:  {timestamp}"
+                    
+                    # Update the display
+                    self.env_label.config(text=env_text)
+                    update_needed = True
+                    logger.info("Environmental data updated based on file changes")
+                
+                # Only update audience data if file has changed
+                if audience_updated:
+                    # Get audience context
+                    audience_context = self.decision_engine.get_audience_context()
+                    
+                    # Format audience data display with better spacing and abbreviated timestamp
+                    if audience_context['audience_present']:
+                        audience_text = f"Present:  Yes\n\n"
+                        if 'count' in audience_context:
+                            audience_text += f"Count:  {audience_context['count']} people\n\n"
+                        if 'group_size' in audience_context:
+                            audience_text += f"Size:  {audience_context['group_size']} people\n\n"
+                        audience_text += f"Age Group:  {audience_context['age_group']}\n\n"
+                        audience_text += f"Gender:  {audience_context['gender']}\n\n"
+                        if 'emotion' in audience_context:
+                            audience_text += f"Emotion:  {audience_context['emotion']}\n\n"
+                        # Abbreviate timestamp to prevent it from being too long
+                        timestamp = audience_context['timestamp']
+                        if len(timestamp) > 19:  # If it has more than just date and time
+                            timestamp = timestamp[:19]  # Keep only the date and time part
+                        audience_text += f"Timestamp:  {timestamp}"
+                    else:
+                        audience_text = "Present:  No\n\n"
+                        # Abbreviate timestamp to prevent it from being too long
+                        timestamp = audience_context['timestamp']
+                        if len(timestamp) > 19:
+                            timestamp = timestamp[:19]
+                        audience_text += f"Timestamp:  {timestamp}"
+                    
+                    # Update the display
+                    self.audience_label.config(text=audience_text)
+                    update_needed = True
+                    logger.info("Audience data updated based on file changes")
             
             # If anything was updated, consider refreshing the ad selection
             if update_needed and random.random() < 0.2:  # 20% chance to refresh ad on data update
@@ -510,8 +565,8 @@ class SmartAdDisplay:
                 
         except Exception as e:
             logger.error(f"Error updating sensor display: {e}")
-            self.env_label.config(text="Error reading sensor data")
-            self.audience_label.config(text="Error reading audience data")
+            self.env_label.config(text=f"Error reading sensor data: {str(e)}")
+            self.audience_label.config(text=f"Error reading audience data: {str(e)}")
     
     def select_next_ad(self):
         """Select and display the next advertisement using the decision engine"""

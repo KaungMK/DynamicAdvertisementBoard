@@ -86,8 +86,24 @@ class SmartAdDisplay:
     def __init__(self, root, env_data_file="weather_data.json", audience_data_file="engagement_data.json"):
         self.root = root
         self.root.title("Smart Advertisement Board")
-        self.root.attributes('-fullscreen', True)  # Full screen for Raspberry Pi
         
+        # Multiple approaches to ensure fullscreen works on Raspberry Pi 5
+        self.root.attributes('-fullscreen', True)  # Standard approach
+        
+        # Additional methods for Raspberry Pi
+        self.root.overrideredirect(True)  # Remove window decorations
+        
+        # Get screen dimensions
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        
+        # Set window size to fill screen
+        self.root.geometry(f"{screen_width}x{screen_height}+0+0")
+        
+        # Make sure window stays on top
+        self.root.attributes('-topmost', True)
+        
+        logger.info(f"Display initialized with resolution: {screen_width}x{screen_height}")
         logger.info(f"Looking for environment data at: {env_data_file}")
         logger.info(f"Looking for audience data at: {audience_data_file}")
         
@@ -257,6 +273,9 @@ class SmartAdDisplay:
     def exit_fullscreen(self, event=None):
         """Exit fullscreen mode"""
         self.root.attributes('-fullscreen', False)
+        self.root.overrideredirect(False)  # Restore window decorations
+        self.root.attributes('-topmost', False)  # Remove always-on-top
+        self.root.geometry('800x600')  # Set a reasonable window size
         return "break"
     
     def on_closing(self):
@@ -317,51 +336,73 @@ class SmartAdDisplay:
     def update_sensor_display(self):
         """Update the sensor data display with current readings"""
         try:
-            # Get environmental context
-            env_context = self.decision_engine.get_environmental_context()
-            audience_context = self.decision_engine.get_audience_context()
+            # Check if files have been modified before reading them
+            env_updated = self.decision_engine.check_env_file_updated()
+            audience_updated = self.decision_engine.check_audience_file_updated()
             
-            # Format environmental data display with better spacing and abbreviated timestamp
-            env_text = f"Temperature:  {env_context['temperature']:.1f}°C  ({env_context['temperature_category']})\n\n"
-            env_text += f"Humidity:  {env_context['humidity']:.1f}%  ({env_context['humidity_category']})\n\n"
-            # Check if 'predicted_weather' is in the context and add it
-            if 'predicted_weather' in env_context:
-                env_text += f"Weather:  {env_context['predicted_weather']}\n\n"
+            update_needed = False
+            
+            # Only update environmental data if file has changed
+            if env_updated:
+                # Get environmental context
+                env_context = self.decision_engine.get_environmental_context()
                 
-            # Abbreviate timestamp to prevent it from being too long
-            timestamp = env_context['timestamp']
-            if len(timestamp) > 19:  # If it has more than just date and time
-                timestamp = timestamp[:19]  # Keep only the date and time part
-            env_text += f"Timestamp:  {timestamp}"
-            
-            self.env_label.config(text=env_text)
-            
-            # Format audience data display with better spacing and abbreviated timestamp
-            if audience_context['audience_present']:
-                audience_text = f"Present:  Yes\n\n"
-                if 'count' in audience_context:
-                    audience_text += f"Count:  {audience_context['count']} people\n\n"
-                if 'size' in audience_context:
-                    audience_text += f"Size:  {audience_context['group_size']} people\n\n"
-                audience_text += f"Age Group:  {audience_context['age_group']}\n\n"
-                audience_text += f"Gender:  {audience_context['gender']}\n\n"
-                if 'emotion' in audience_context:
-                    audience_text += f"Emotion:  {audience_context['emotion']}\n\n"
+                # Format environmental data display with better spacing and abbreviated timestamp
+                env_text = f"Temperature:  {env_context['temperature']:.1f}°C  ({env_context['temperature_category']})\n\n"
+                env_text += f"Humidity:  {env_context['humidity']:.1f}%  ({env_context['humidity_category']})\n\n"
+                # Check if 'predicted_weather' is in the context and add it
+                if 'predicted_weather' in env_context:
+                    env_text += f"Weather:  {env_context['predicted_weather']}\n\n"
+                    
                 # Abbreviate timestamp to prevent it from being too long
-                timestamp = audience_context['timestamp']
+                timestamp = env_context['timestamp']
                 if len(timestamp) > 19:  # If it has more than just date and time
                     timestamp = timestamp[:19]  # Keep only the date and time part
-                audience_text += f"Timestamp:  {timestamp}"
-            else:
-                audience_text = "Present:  No\n\n"
-                # Abbreviate timestamp to prevent it from being too long
-                timestamp = audience_context['timestamp']
-                if len(timestamp) > 19:
-                    timestamp = timestamp[:19]
-                audience_text += f"Timestamp:  {timestamp}"
+                env_text += f"Timestamp:  {timestamp}"
+                
+                # Update the display
+                self.env_label.config(text=env_text)
+                update_needed = True
+                logger.info("Environmental data updated based on file changes")
             
-            self.audience_label.config(text=audience_text)
+            # Only update audience data if file has changed
+            if audience_updated:
+                # Get audience context
+                audience_context = self.decision_engine.get_audience_context()
+                
+                # Format audience data display with better spacing and abbreviated timestamp
+                if audience_context['audience_present']:
+                    audience_text = f"Present:  Yes\n\n"
+                    if 'count' in audience_context:
+                        audience_text += f"Count:  {audience_context['count']} people\n\n"
+                    if 'size' in audience_context:
+                        audience_text += f"Size:  {audience_context['group_size']} people\n\n"
+                    audience_text += f"Age Group:  {audience_context['age_group']}\n\n"
+                    audience_text += f"Gender:  {audience_context['gender']}\n\n"
+                    if 'emotion' in audience_context:
+                        audience_text += f"Emotion:  {audience_context['emotion']}\n\n"
+                    # Abbreviate timestamp to prevent it from being too long
+                    timestamp = audience_context['timestamp']
+                    if len(timestamp) > 19:  # If it has more than just date and time
+                        timestamp = timestamp[:19]  # Keep only the date and time part
+                    audience_text += f"Timestamp:  {timestamp}"
+                else:
+                    audience_text = "Present:  No\n\n"
+                    # Abbreviate timestamp to prevent it from being too long
+                    timestamp = audience_context['timestamp']
+                    if len(timestamp) > 19:
+                        timestamp = timestamp[:19]
+                    audience_text += f"Timestamp:  {timestamp}"
+                
+                # Update the display
+                self.audience_label.config(text=audience_text)
+                update_needed = True
+                logger.info("Audience data updated based on file changes")
             
+            # If anything was updated, consider refreshing the ad selection
+            if update_needed and random.random() < 0.2:  # 20% chance to refresh ad on data update
+                self.select_next_ad()
+                
         except Exception as e:
             logger.error(f"Error updating sensor display: {e}")
             self.env_label.config(text="Error reading sensor data")
@@ -468,9 +509,28 @@ def main():
     
     # Initialize the application with the absolute paths
     root = tk.Tk()
+    
+    # Set no window decorations before window is drawn
+    root.overrideredirect(True)
+    
+    # Configure window to maximize when created
+    root.attributes('-zoomed', True)  # This helps on some Linux window managers
+    
+    # Create application after setting initial window properties
     app = SmartAdDisplay(root, 
                        env_data_file=env_data_file, 
                        audience_data_file=audience_data_file)
+    
+    # Start sensor processes after UI is set up
+    app.start_sensor_processes()
+    
+    # Start sensor tracking
+    app.start_sensor_tracking()
+    
+    # Start auto-cycling ads immediately
+    app.start_auto_cycle()
+    
+    # Enter the main loop
     root.mainloop()
 
 if __name__ == "__main__":

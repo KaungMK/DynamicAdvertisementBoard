@@ -218,9 +218,15 @@ class ContentDecisionEngine:
             if not os.path.exists(self.audience_data_file):
                 logger.error(f"Audience data file {self.audience_data_file} not found")
                 return None
-                
-            # Check if we need to read the file or can use cached data
-            if not skip_check and self.cached_audience_data and not self.check_audience_file_updated():
+            
+            # Always read the file when skip_check is True, ignoring cache completely
+            if skip_check:
+                # Force setting the last modified time to 0 to ensure check_audience_file_updated returns True next time
+                self.audience_file_last_modified = 0
+                self.cached_audience_data = None
+                logger.debug("Force reading audience data due to skip_check=True")
+            elif self.cached_audience_data and not self.check_audience_file_updated():
+                logger.debug("Using cached audience data since file hasn't changed")
                 return self.cached_audience_data
                 
             # File exists and has changed (or skip_check is True), try to read it
@@ -240,19 +246,47 @@ class ContentDecisionEngine:
             
             # Check if there are audience records
             audience_records = data.get('audience', [])
-            if audience_records:
+            if audience_records and len(audience_records) > 0:
                 audience_present = True
                 
                 # Get the most recent record
                 latest_audience = audience_records[-1]
                 
-                # Extract attributes
-                age_group = latest_audience.get('age', 'all')
-                gender = latest_audience.get('gender', 'both')
+                # Extract attributes - handle the actual format in your JSON
+                # Map age value to an age group category
+                age_value = latest_audience.get('age', 0)
+                if age_value < 18:
+                    age_group = "youth"
+                elif age_value < 35:
+                    age_group = "young_adult"
+                elif age_value < 55:
+                    age_group = "adult"
+                else:
+                    age_group = "senior"
+                    
+                # Handle gender format (in your JSON it's 'M' or 'F')
+                gender_code = latest_audience.get('gender', '')
+                if gender_code == 'M':
+                    gender = "male"
+                elif gender_code == 'F':
+                    gender = "female"
+                else:
+                    gender = "both"
+                    
+                # Handle emotion with proper capitalization
                 emotion = latest_audience.get('emotion', 'neutral')
+                if emotion:
+                    emotion = emotion.lower()
                 
                 logger.info(f"Got latest audience data: Count={audience_count}, "
-                           f"Age={age_group}, Gender={gender}, Emotion={emotion}")
+                           f"Age={age_value} (group: {age_group}), Gender={gender}, Emotion={emotion}")
+            else:
+                logger.info("No audience detected in the latest data")
+            
+            # Use entry timestamp from the audience record if available
+            timestamp = datetime.now().isoformat()
+            if audience_present and 'entry' in latest_audience:
+                timestamp = latest_audience['entry']
             
             audience_data = {
                 "audience_present": audience_present,
@@ -260,7 +294,7 @@ class ContentDecisionEngine:
                 "age_group": age_group,
                 "gender": gender,
                 "emotion": emotion,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": timestamp
             }
             
             # Cache the data for next time

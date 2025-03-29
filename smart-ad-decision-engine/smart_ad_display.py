@@ -1,5 +1,5 @@
 """
-Smart Advertisement Board System with improved spacing in the display layout
+Smart Advertisement Board System with integrated sensors and engagement analysis
 """
 
 import boto3
@@ -15,9 +15,9 @@ from io import BytesIO
 import requests
 from datetime import datetime
 import os
-
-# Import the decision engine
-from decision_engine import ContentDecisionEngine
+import subprocess
+import signal
+import sys
 
 # Configure logging
 logging.basicConfig(
@@ -25,6 +25,9 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("SmartAdBoard")
+
+# Import the decision engine
+from decision_engine import ContentDecisionEngine
 
 class AWSContentRepository:
     """
@@ -80,13 +83,13 @@ class AWSContentRepository:
             return None
 
 class SmartAdDisplay:
-    def __init__(self, root, env_data_file="sensors/temp_humidity_data.json", audience_data_file="sensors/audience_data.json"):
+    def __init__(self, root, env_data_file="weather_data.json", audience_data_file="engagement_data.json"):
         self.root = root
         self.root.title("Smart Advertisement Board")
         self.root.attributes('-fullscreen', True)  # Full screen for Raspberry Pi
         
-        print(f"Looking for env data at: {env_data_file}")
-        print(f"Looking for audience data at: {audience_data_file}")
+        logger.info(f"Looking for environment data at: {env_data_file}")
+        logger.info(f"Looking for audience data at: {audience_data_file}")
         
         # Initialize components
         self.content_repository = AWSContentRepository()
@@ -102,11 +105,19 @@ class SmartAdDisplay:
         self.stop_thread = False
         self.sensor_update_thread = None
         
+        # Sensor subprocess objects
+        self.sensor_process = None
+        self.engagement_process = None
+        
         # Create the main layout
         self.create_layout()
         
         # Bind escape key to exit full screen
         self.root.bind("<Escape>", self.exit_fullscreen)
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+        
+        # Start sensor processes
+        self.start_sensor_processes()
         
         # Start sensor tracking
         self.start_sensor_tracking()
@@ -210,10 +221,59 @@ class SmartAdDisplay:
         )
         self.ad_info_label.pack(expand=True, fill="both", padx=20, pady=20)
     
+    def start_sensor_processes(self):
+        """Start the temperature/humidity sensor and engagement analyzer processes"""
+        try:
+            # Get the directory of the current script
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            
+            # Start the temperature/humidity sensor process
+            sensor_script = os.path.join(base_dir, "temp_humd_sensor.py")
+            if os.path.exists(sensor_script):
+                logger.info(f"Starting temperature/humidity sensor at {sensor_script}")
+                # Use Popen to run the script in the background
+                self.sensor_process = subprocess.Popen([sys.executable, sensor_script], 
+                                                      stdout=subprocess.PIPE, 
+                                                      stderr=subprocess.PIPE)
+                logger.info(f"Temperature/humidity sensor started with PID {self.sensor_process.pid}")
+            else:
+                logger.error(f"Temperature/humidity sensor script not found at {sensor_script}")
+            
+            # Start the engagement analyzer process
+            engagement_script = os.path.join(base_dir, "engagement_analyzer.py")
+            if os.path.exists(engagement_script):
+                logger.info(f"Starting engagement analyzer at {engagement_script}")
+                # Use Popen to run the script in the background
+                self.engagement_process = subprocess.Popen([sys.executable, engagement_script],
+                                                         stdout=subprocess.PIPE,
+                                                         stderr=subprocess.PIPE)
+                logger.info(f"Engagement analyzer started with PID {self.engagement_process.pid}")
+            else:
+                logger.error(f"Engagement analyzer script not found at {engagement_script}")
+                
+        except Exception as e:
+            logger.error(f"Error starting sensor processes: {e}")
+    
     def exit_fullscreen(self, event=None):
         """Exit fullscreen mode"""
         self.root.attributes('-fullscreen', False)
         return "break"
+    
+    def on_closing(self):
+        """Handle window closing by terminating subprocesses"""
+        self.stop_thread = True
+        
+        # Terminate sensor processes
+        if self.sensor_process:
+            logger.info(f"Terminating temperature/humidity sensor process (PID {self.sensor_process.pid})")
+            self.sensor_process.terminate()
+            
+        if self.engagement_process:
+            logger.info(f"Terminating engagement analyzer process (PID {self.engagement_process.pid})")
+            self.engagement_process.terminate()
+            
+        # Destroy the window
+        self.root.destroy()
     
     def start_auto_cycle(self):
         """Start automatic cycling of advertisements"""
@@ -264,6 +324,10 @@ class SmartAdDisplay:
             # Format environmental data display with better spacing and abbreviated timestamp
             env_text = f"Temperature:  {env_context['temperature']:.1f}°C  ({env_context['temperature_category']})\n\n"
             env_text += f"Humidity:  {env_context['humidity']:.1f}%  ({env_context['humidity_category']})\n\n"
+            # Check if 'predicted_weather' is in the context and add it
+            if 'predicted_weather' in env_context:
+                env_text += f"Weather:  {env_context['predicted_weather']}\n\n"
+                
             # Abbreviate timestamp to prevent it from being too long
             timestamp = env_context['timestamp']
             if len(timestamp) > 19:  # If it has more than just date and time
@@ -275,9 +339,14 @@ class SmartAdDisplay:
             # Format audience data display with better spacing and abbreviated timestamp
             if audience_context['audience_present']:
                 audience_text = f"Present:  Yes\n\n"
-                audience_text += f"Size:  {audience_context['group_size']} people\n\n"
+                if 'count' in audience_context:
+                    audience_text += f"Count:  {audience_context['count']} people\n\n"
+                if 'size' in audience_context:
+                    audience_text += f"Size:  {audience_context['group_size']} people\n\n"
                 audience_text += f"Age Group:  {audience_context['age_group']}\n\n"
                 audience_text += f"Gender:  {audience_context['gender']}\n\n"
+                if 'emotion' in audience_context:
+                    audience_text += f"Emotion:  {audience_context['emotion']}\n\n"
                 # Abbreviate timestamp to prevent it from being too long
                 timestamp = audience_context['timestamp']
                 if len(timestamp) > 19:  # If it has more than just date and time
@@ -390,12 +459,18 @@ class SmartAdDisplay:
         except Exception as e:
             logger.error(f"Error in display_ad: {e}")
 
-
 def main():
     """Main function to run the advertisement display"""
+    # Create absolute paths to your data files
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    env_data_file = os.path.join(base_dir, "weather_data.json")
+    audience_data_file = os.path.join(base_dir, "engagement_data.json")
+    
     # Initialize the application with the absolute paths
     root = tk.Tk()
-    app = SmartAdDisplay(root)                      
+    app = SmartAdDisplay(root, 
+                       env_data_file=env_data_file, 
+                       audience_data_file=audience_data_file)
     root.mainloop()
 
 if __name__ == "__main__":

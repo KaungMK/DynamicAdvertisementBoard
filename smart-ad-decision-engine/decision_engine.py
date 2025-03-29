@@ -1,5 +1,5 @@
 """
-Enhanced Decision Engine with Score-Based Ad Selection System
+Enhanced Decision Engine with integration for new sensor data formats
 """
 
 import json
@@ -18,12 +18,12 @@ logger = logging.getLogger("DecisionEngine")
 
 class ContentDecisionEngine:
     """
-    Enhanced decision engine with score-based ad selection system
+    Enhanced decision engine with integration for engagement analyzer and temperature/humidity sensor
     """
     
     def __init__(self, content_repository, 
-                 env_data_file="sensors/temp_humidity_data.json",
-                 audience_data_file="sensors/audience_data.json",
+                 env_data_file="weather_data.json",
+                 audience_data_file="engagement_data.json",
                  history_file="ad_display_history.json"):
         """
         Initialize the decision engine
@@ -71,7 +71,8 @@ class ContentDecisionEngine:
         """Save ad display history to file"""
         try:
             # Create parent directory if it doesn't exist
-            os.makedirs(os.path.dirname(os.path.abspath(self.history_file)), exist_ok=True)
+            dir_path = os.path.dirname(os.path.abspath(self.history_file))
+            os.makedirs(dir_path, exist_ok=True)
             
             history_data = {
                 'recent_displays': self.recent_displays,
@@ -85,38 +86,106 @@ class ContentDecisionEngine:
         except Exception as e:
             logger.error(f"Error saving display history: {e}")
     
-    def get_latest_data(self, data_file):
+    def get_latest_weather_data(self):
         """
-        Read the latest data from a sensor data file
+        Read the latest data from the weather sensor file
         
-        Args:
-            data_file (str): Path to the data file
-            
         Returns:
-            dict: Latest data entry or None if unavailable
+            dict: Latest weather data entry or default values if unavailable
         """
         try:
-            with open(data_file, 'r') as f:
+            # Check if file exists
+            if not os.path.exists(self.env_data_file):
+                logger.error(f"Weather data file {self.env_data_file} not found")
+                return None
+                
+            # File exists, try to read it
+            with open(self.env_data_file, 'r') as f:
                 data = json.load(f)
                 
             if not data:
-                logger.warning(f"Data file {data_file} is empty")
+                logger.warning(f"Weather data file {self.env_data_file} is empty")
                 return None
                 
-            # Sort by timestamp to get the latest reading
-            data.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
-            latest_data = data[0]
+            # Get the latest entry (last in the list)
+            latest_data = data[-1]  # Last entry in the list
+            
+            logger.info(f"Got latest weather data: Temp={latest_data.get('avg_dht_temp', 'N/A')}°C, "
+                        f"Humidity={latest_data.get('avg_dht_humidity', 'N/A')}%")
             
             return latest_data
             
         except FileNotFoundError:
-            logger.error(f"Data file {data_file} not found")
+            logger.error(f"Weather data file {self.env_data_file} not found")
             return None
         except json.JSONDecodeError:
-            logger.error(f"Error parsing data file {data_file}")
+            logger.error(f"Error parsing weather data file {self.env_data_file}")
             return None
         except Exception as e:
-            logger.error(f"Error reading data: {e}")
+            logger.error(f"Error reading weather data: {e}")
+            return None
+    
+    def get_latest_audience_data(self):
+        """
+        Read the latest data from the engagement analyzer file
+        
+        Returns:
+            dict: Latest audience data or default values if unavailable
+        """
+        try:
+            # Check if file exists
+            if not os.path.exists(self.audience_data_file):
+                logger.error(f"Audience data file {self.audience_data_file} not found")
+                return None
+                
+            # File exists, try to read it
+            with open(self.audience_data_file, 'r') as f:
+                data = json.load(f)
+                
+            if not data or not isinstance(data, dict):
+                logger.warning(f"Audience data file {self.audience_data_file} is empty or invalid")
+                return None
+                
+            # Extract audience information
+            audience_present = False
+            audience_count = data.get('count', 0)
+            age_group = "all"
+            gender = "both"
+            emotion = "neutral"
+            
+            # Check if there are audience records
+            audience_records = data.get('audience', [])
+            if audience_records:
+                audience_present = True
+                
+                # Get the most recent record
+                latest_audience = audience_records[-1]
+                
+                # Extract attributes
+                age_group = latest_audience.get('age', 'all')
+                gender = latest_audience.get('gender', 'both')
+                emotion = latest_audience.get('emotion', 'neutral')
+                
+                logger.info(f"Got latest audience data: Count={audience_count}, "
+                           f"Age={age_group}, Gender={gender}, Emotion={emotion}")
+            
+            return {
+                "audience_present": audience_present,
+                "count": audience_count,
+                "age_group": age_group,
+                "gender": gender,
+                "emotion": emotion,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+        except FileNotFoundError:
+            logger.error(f"Audience data file {self.audience_data_file} not found")
+            return None
+        except json.JSONDecodeError:
+            logger.error(f"Error parsing audience data file {self.audience_data_file}")
+            return None
+        except Exception as e:
+            logger.error(f"Error reading audience data: {e}")
             return None
     
     def get_environmental_context(self):
@@ -126,9 +195,9 @@ class ContentDecisionEngine:
         Returns:
             dict: Environmental context with categorized values
         """
-        sensor_data = self.get_latest_data(self.env_data_file)
+        weather_data = self.get_latest_weather_data()
         
-        if not sensor_data:
+        if not weather_data:
             # Default values if no sensor data available
             logger.warning("Using default environmental context due to missing sensor data")
             return {
@@ -140,8 +209,8 @@ class ContentDecisionEngine:
             }
         
         # Extract and categorize environmental data
-        temperature = sensor_data.get('avg_dht_temp', 25.0)
-        humidity = sensor_data.get('avg_dht_humidity', 60.0)
+        temperature = weather_data.get('avg_dht_temp', 25.0)
+        humidity = weather_data.get('avg_dht_humidity', 60.0)
         
         # Categorize temperature
         if temperature < 15:
@@ -164,20 +233,26 @@ class ContentDecisionEngine:
             "temperature": temperature,
             "temperature_category": temp_category,
             "humidity": humidity,
-            "humidity_category": humidity_category,
-            "timestamp": sensor_data.get('timestamp', datetime.now().isoformat())
+            "humidity_category": humidity_category
         }
+        
+        # Add predicted weather if available
+        if 'predicted_weather' in weather_data:
+            env_context['predicted_weather'] = weather_data['predicted_weather']
+            
+        # Add timestamp
+        env_context['timestamp'] = weather_data.get('timestamp', datetime.now().isoformat())
         
         return env_context
     
     def get_audience_context(self):
         """
-        Create audience context using camera data or audience data file
+        Create audience context using engagement analyzer data
         
         Returns:
             dict: Audience context with demographic information
         """
-        audience_data = self.get_latest_data(self.audience_data_file)
+        audience_data = self.get_latest_audience_data()
         
         if not audience_data:
             # Default values if no audience data available
@@ -190,17 +265,7 @@ class ContentDecisionEngine:
                 "timestamp": datetime.now().isoformat()
             }
         
-        # Extract audience information
-        # Note: These fields should match what your audience detection system provides
-        audience_context = {
-            "audience_present": audience_data.get('audience_present', False),
-            "age_group": audience_data.get('age_group', 'all'),
-            "gender": audience_data.get('gender', 'both'),
-            "group_size": audience_data.get('group_size', 0),
-            "timestamp": audience_data.get('timestamp', datetime.now().isoformat())
-        }
-        
-        return audience_context
+        return audience_data
     
     def calculate_demographic_relevance(self, ad, audience_context):
         """
@@ -230,6 +295,17 @@ class ContentDecisionEngine:
             if ad["gender"] != audience_gender and audience_gender != "both":
                 relevance *= 0.5  # Reduce relevance for gender mismatch
         
+        # Special targeting based on emotion (optional enhancement)
+        if "emotion" in audience_context:
+            emotion = audience_context["emotion"].lower()
+            ad_title = ad.get("title", "").lower()
+            
+            # Boost relevance for mood-appropriate ads
+            if emotion == "happy" and any(keyword in ad_title for keyword in ["fun", "joy", "happy", "celebration"]):
+                relevance *= 1.2
+            elif emotion == "sad" and any(keyword in ad_title for keyword in ["comfort", "relax", "care"]):
+                relevance *= 1.2
+        
         return relevance
     
     def calculate_environmental_relevance(self, ad, env_context):
@@ -255,6 +331,14 @@ class ContentDecisionEngine:
         if "humidity" in ad and ad["humidity"] not in ["any"]:
             if ad["humidity"] != env_context["humidity_category"]:
                 relevance *= 0.7  # Slightly reduce relevance for humidity mismatch
+        
+        # Weather condition relevance (optional enhancement)
+        if "predicted_weather" in env_context and "weather_condition" in ad:
+            weather = env_context["predicted_weather"].lower()
+            ad_weather = ad["weather_condition"].lower()
+            
+            if weather != ad_weather and ad_weather != "any":
+                relevance *= 0.5
         
         return relevance
     

@@ -417,8 +417,8 @@ class SmartAdDisplay:
             # Select and display the next ad
             self.select_next_ad()
             
-            # Wait for 5 seconds
-            for _ in range(50):  # Check stop flag every 100ms
+            # Wait for 10 seconds (increased from 5 seconds)
+            for _ in range(100):  # Check stop flag every 100ms (100 * 100ms = 10 seconds)
                 if self.stop_thread:
                     break
                 time.sleep(0.1)

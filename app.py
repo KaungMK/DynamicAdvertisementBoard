@@ -160,13 +160,13 @@ def dashboard_data():
     gender_counts = collections.Counter()
 
     for item in items:
-        emotion = item.get('emotion', 'unknown')
+        emotion = item.get('emotion', 'unknown').lower()
         emotion_counts[emotion] += 1
 
-        age = item.get('age_group', 'unknown')
+        age = item.get('age_group', 'unknown').lower()
         age_groups[age] += 1
 
-        gender = item.get('gender', 'unknown')
+        gender = item.get('gender', 'unknown').lower()
         gender_counts[gender] += 1
 
     return jsonify({

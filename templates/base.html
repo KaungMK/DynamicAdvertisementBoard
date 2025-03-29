@@ -3,33 +3,49 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}My Dashboard{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/sb-admin-2.min.css') }}">
   <script src="{{ url_for('static', filename='vendor/chart.js/chart.js') }}"></script>
   <style>
+    .navbar {
+      padding-top: 0.3rem;
+      padding-bottom: 0.3rem;
+      min-height: 48px;
+    }
+
+    .navbar-brand,
+    .nav-link {
+      font-size: 0.9rem;
+      padding-top: 0.2rem;
+      padding-bottom: 0.2rem;
+    }
+
     body {
       background-color: #f8f9fc;
-      padding-top: 70px;
+      padding-top: 56px; /* Matches reduced navbar height */
     }
-  </style>
+  </style>  
 </head>
 <body>
 
   <!-- 🔝 Navbar -->
-  <nav class="navbar navbar-expand navbar-light bg-white topbar static-top shadow fixed-top">
-    <a class="navbar-brand" href="/">MyAdBoard</a>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+    <div class="container">
+      <a class="navbar-brand" href="/">MyAdBoard</a>
 
-    <!-- Add more nav items here if needed -->
-    <ul class="navbar-nav ml-auto">
-      <li class="nav-item"><a class="nav-link" href="/ad">Ads</a></li>
-      <li class="nav-item"><a class="nav-link" href="/analytics">Analytics</a></li>
-    </ul>
+      <div class="collapse navbar-collapse">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item"><a class="nav-link text-white" href="/ad">Ads</a></li>
+          <li class="nav-item"><a class="nav-link text-white" href="/analytics">Analytics</a></li>
+        </ul>
+      </div>
+    </div>
   </nav>
 
   <!-- 🧱 Page Content -->
   <div class="container-fluid">
     {% block content %}{% endblock %}
   </div>
-
 </body>
 </html>

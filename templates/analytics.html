@@ -1,22 +1,70 @@
-<!-- templates/analytics.html -->
 {% extends "base.html" %}
 
 {% block title %}Analytics{% endblock %}
 
 {% block content %}
+<style>
+  body {
+    background-color: #ffffff;
+    color: #000000;
+  }
+  canvas {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 8px;
+  }
+  .card-title {
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+    color: #000000;
+  }
+  .navbar {
+    background-color: #001f3f !important; /* navy blue */
+  }
+</style>
+
 <h2 class="text-center mb-4">Real-Time Analytics Dashboard</h2>
 
-<div class="row">
-  <div class="col-lg-6 mb-4">
-    <div class="card shadow">
+<!-- Stat Cards -->
+<div class="row text-dark mb-4">
+  <div class="col-md-3 mb-3">
+    <div class="card bg-primary shadow text-white">
       <div class="card-body">
-        <h5 class="card-title">Emotion Distribution</h5>
-        <canvas id="emotionChart"></canvas>
+        <h6 class="card-title text-uppercase">Total Ads</h6>
+        <h3 id="totalAds" class="mb-0">0</h3>
       </div>
     </div>
   </div>
+  <div class="col-md-3 mb-3">
+    <div class="card bg-success shadow text-white">
+      <div class="card-body">
+        <h6 class="card-title text-uppercase">Female %</h6>
+        <h3 id="femalePercent" class="mb-0">0%</h3>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 mb-3">
+    <div class="card bg-warning shadow text-white">
+      <div class="card-body">
+        <h6 class="card-title text-uppercase">Male %</h6>
+        <h3 id="malePercent" class="mb-0">0%</h3>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 mb-3">
+    <div class="card bg-info shadow text-white">
+      <div class="card-body">
+        <h6 class="card-title text-uppercase">Age Groups</h6>
+        <h3 id="uniqueAges" class="mb-0">0</h3>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart Rows -->
+<div class="row">
   <div class="col-lg-6 mb-4">
-    <div class="card shadow">
+    <div class="card bg-light text-dark shadow">
       <div class="card-body">
         <h5 class="card-title">Age Group Distribution</h5>
         <canvas id="ageChart"></canvas>
@@ -24,17 +72,17 @@
     </div>
   </div>
   <div class="col-lg-6 mb-4">
-    <div class="card shadow">
+    <div class="card bg-light text-dark shadow">
       <div class="card-body">
         <h5 class="card-title">Gender Breakdown</h5>
         <canvas id="genderChart"></canvas>
       </div>
     </div>
   </div>
-  <div class="col-lg-6 mb-4">
-    <div class="card shadow">
+  <div class="col-lg-12 mb-4">
+    <div class="card bg-light text-dark shadow">
       <div class="card-body">
-        <h5 class="card-title">Engagement Over Time</h5>
+        <h5 class="card-title">Engagement Over Time (Mock)</h5>
         <canvas id="engagementChart"></canvas>
       </div>
     </div>
@@ -46,24 +94,19 @@
     const res = await fetch("/dashboard-data");
     const data = await res.json();
 
-    const emotions = Object.keys(data.emotions || {});
-    const emotionCounts = Object.values(data.emotions || {});
     const ageGroups = Object.keys(data.age_groups || {});
     const ageCounts = Object.values(data.age_groups || {});
     const genders = Object.keys(data.gender_counts || {});
     const genderCounts = Object.values(data.gender_counts || {});
 
-    new Chart(document.getElementById("emotionChart"), {
-      type: "bar",
-      data: {
-        labels: emotions,
-        datasets: [{
-          label: "Emotions",
-          data: emotionCounts,
-          backgroundColor: "#556ee6"
-        }]
-      }
-    });
+    const total = genderCounts.reduce((a, b) => a + b, 0);
+    const female = data.gender_counts?.female || data.gender_counts?.Female || 0;
+    const male = data.gender_counts?.male || data.gender_counts?.Male || 0;
+
+    document.getElementById("totalAds").textContent = total;
+    document.getElementById("femalePercent").textContent = `${((female / total) * 100).toFixed(1)}%`;
+    document.getElementById("malePercent").textContent = `${((male / total) * 100).toFixed(1)}%`;
+    document.getElementById("uniqueAges").textContent = ageGroups.length;
 
     new Chart(document.getElementById("ageChart"), {
       type: "pie",
@@ -74,6 +117,15 @@
           data: ageCounts,
           backgroundColor: ["#f46a6a", "#34c38f", "#f1b44c", "#50a5f1"]
         }]
+      },
+      options: {
+        plugins: {
+          legend: {
+            labels: {
+              color: '#000'
+            }
+          }
+        }
       }
     });
 
@@ -86,6 +138,15 @@
           data: genderCounts,
           backgroundColor: ["#00bcd4", "#e91e63", "#9e9e9e"]
         }]
+      },
+      options: {
+        plugins: {
+          legend: {
+            labels: {
+              color: '#000'
+            }
+          }
+        }
       }
     });
 
@@ -100,6 +161,30 @@
           fill: false,
           tension: 0.3
         }]
+      },
+      options: {
+        plugins: {
+          legend: {
+            labels: {
+              color: '#000'
+            }
+          },
+          tooltip: {
+            bodyColor: '#000'
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              color: '#000'
+            }
+          },
+          y: {
+            ticks: {
+              color: '#000'
+            }
+          }
+        }
       }
     });
   }

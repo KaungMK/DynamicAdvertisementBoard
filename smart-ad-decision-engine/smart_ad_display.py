@@ -177,12 +177,14 @@ class SmartAdDisplay:
         )
         shortcut_label.place(x=self.root.winfo_screenwidth()-150, y=45)
         
-        # Top spacer
-        tk.Frame(self.header_frame, height=5, bg="black").pack(fill="x")
+        # Create a container frame for both data panels to ensure proper alignment
+        data_container = tk.Frame(self.header_frame, bg="black")
+        data_container.pack(fill="both", expand=True, padx=30, pady=10)
         
-        # Left side frame for environment data
-        self.env_frame = tk.Frame(self.header_frame, bg="black")
-        self.env_frame.pack(side="left", fill="both", expand=True, padx=20)
+        # Left side frame for environment data (fixed width)
+        self.env_frame = tk.Frame(data_container, bg="black", width=450)
+        self.env_frame.pack(side="left", fill="both", padx=20)
+        self.env_frame.pack_propagate(False)  # Keep fixed width
         
         # Environment data labels
         self.env_header = tk.Label(
@@ -192,7 +194,7 @@ class SmartAdDisplay:
             fg="white",
             font=("Arial", 14, "bold")
         )
-        self.env_header.pack(anchor="w", pady=(5, 10))
+        self.env_header.pack(anchor="w", pady=(0, 15))
         
         self.env_label = tk.Label(
             self.env_frame,
@@ -201,13 +203,15 @@ class SmartAdDisplay:
             fg="yellow",
             font=("Arial", 12),
             justify=tk.LEFT,
-            wraplength=400  # Prevent text from being cut off
+            wraplength=400,  # Prevent text from being cut off
+            anchor="w"       # Left-align text
         )
-        self.env_label.pack(anchor="w", pady=5, fill="both", expand=True)
+        self.env_label.pack(anchor="w", fill="both")
         
-        # Right side frame for audience data
-        self.audience_frame = tk.Frame(self.header_frame, bg="black")
-        self.audience_frame.pack(side="right", fill="both", expand=True, padx=20)
+        # Right side frame for audience data (fixed width)
+        self.audience_frame = tk.Frame(data_container, bg="black", width=450)
+        self.audience_frame.pack(side="right", fill="both", padx=20)
+        self.audience_frame.pack_propagate(False)  # Keep fixed width
         
         # Audience data labels
         self.audience_header = tk.Label(
@@ -217,7 +221,7 @@ class SmartAdDisplay:
             fg="white",
             font=("Arial", 14, "bold")
         )
-        self.audience_header.pack(anchor="w", pady=(5, 10))
+        self.audience_header.pack(anchor="w", pady=(0, 15))
         
         self.audience_label = tk.Label(
             self.audience_frame,
@@ -226,25 +230,30 @@ class SmartAdDisplay:
             fg="yellow",
             font=("Arial", 12),
             justify=tk.LEFT,
-            wraplength=400  # Prevent text from being cut off
+            wraplength=400,  # Prevent text from being cut off
+            anchor="w"       # Left-align text
         )
-        self.audience_label.pack(anchor="w", pady=5, fill="both", expand=True)
+        self.audience_label.pack(anchor="w", fill="both")
         
         # Separator line between header and content
         separator = tk.Frame(self.root, height=2, bg="gray")
-        separator.pack(fill="x", padx=10)
+        separator.pack(fill="x", padx=0)
         
         # Main frame for ad display
         self.ad_frame = tk.Frame(self.root, bg="black")
         self.ad_frame.pack(expand=True, fill="both")
         
+        # Frame to hold the image with padding
+        image_container = tk.Frame(self.ad_frame, bg="black")
+        image_container.pack(expand=True, fill="both", padx=50, pady=20)
+        
         # Label to display the ad image
-        self.ad_image_label = tk.Label(self.ad_frame, bg="black")
-        self.ad_image_label.pack(expand=True, fill="both", pady=10)
+        self.ad_image_label = tk.Label(image_container, bg="black")
+        self.ad_image_label.pack(expand=True, fill="both")
         
         # Separator line between content and footer
         separator2 = tk.Frame(self.root, height=2, bg="gray")
-        separator2.pack(fill="x", padx=10)
+        separator2.pack(fill="x", padx=0)
         
         # Footer frame for ad information - increased height
         self.footer_frame = tk.Frame(self.root, bg="black", height=80)
@@ -262,7 +271,7 @@ class SmartAdDisplay:
             font=("Arial", 14),
             wraplength=800  # Ensure long ad titles don't get cut off
         )
-        self.ad_info_label.pack(expand=True, fill="both", padx=20, pady=20)
+        self.ad_info_label.pack(expand=True, fill="both", padx=30, pady=25)
     
     def start_sensor_processes(self):
         """Start the temperature/humidity sensor and engagement analyzer processes"""
@@ -385,9 +394,12 @@ class SmartAdDisplay:
                 # Format environmental data display with better spacing and abbreviated timestamp
                 env_text = f"Temperature:  {env_context['temperature']:.1f}°C  ({env_context['temperature_category']})\n\n"
                 env_text += f"Humidity:  {env_context['humidity']:.1f}%  ({env_context['humidity_category']})\n\n"
+                
                 # Check if 'predicted_weather' is in the context and add it
                 if 'predicted_weather' in env_context:
                     env_text += f"Weather:  {env_context['predicted_weather']}\n\n"
+                else:
+                    env_text += f"Weather:  Unknown\n\n"
                     
                 # Abbreviate timestamp to prevent it from being too long
                 timestamp = env_context['timestamp']
@@ -410,7 +422,7 @@ class SmartAdDisplay:
                     audience_text = f"Present:  Yes\n\n"
                     if 'count' in audience_context:
                         audience_text += f"Count:  {audience_context['count']} people\n\n"
-                    if 'size' in audience_context:
+                    if 'group_size' in audience_context:
                         audience_text += f"Size:  {audience_context['group_size']} people\n\n"
                     audience_text += f"Age Group:  {audience_context['age_group']}\n\n"
                     audience_text += f"Gender:  {audience_context['gender']}\n\n"
@@ -485,9 +497,9 @@ class SmartAdDisplay:
                 # Load and display the image
                 img = Image.open(BytesIO(response.content))
                 
-                # Resize to fit screen
-                screen_width = self.root.winfo_screenwidth()
-                screen_height = self.root.winfo_screenheight() - self.header_frame.winfo_height() - self.footer_frame.winfo_height() - 30  # Extra space for separators
+                # Get available space for the image
+                screen_width = self.root.winfo_screenwidth() - 100  # Account for padding
+                screen_height = self.root.winfo_screenheight() - self.header_frame.winfo_height() - self.footer_frame.winfo_height() - 60  # Account for separators and padding
                 
                 # Calculate aspect ratio to maintain proportions
                 img_ratio = img.width / img.height
@@ -504,8 +516,18 @@ class SmartAdDisplay:
                 
                 img = img.resize((new_width, new_height), Image.LANCZOS)
                 
+                # Add a colored border/frame around the image
+                # Create a larger canvas with a colored border
+                border_width = 8  # Width of the border in pixels
+                border_color = (100, 0, 150)  # Purple color for border
+                
+                # Create a new image with space for the border
+                bordered_img = Image.new('RGB', (new_width + 2*border_width, new_height + 2*border_width), border_color)
+                # Paste the original image in the center
+                bordered_img.paste(img, (border_width, border_width))
+                
                 # Convert to Tkinter format
-                img_tk = ImageTk.PhotoImage(img)
+                img_tk = ImageTk.PhotoImage(bordered_img)
                 
                 # Update the image label
                 self.ad_image_label.config(image=img_tk)
@@ -513,12 +535,19 @@ class SmartAdDisplay:
                 
                 # Create info text based on ad targeting with better spacing
                 target_info = f" (ID: {ad['ad_id']})"
+                
+                # Create a list of targeting criteria
+                targeting = []
                 if "age_group" in ad and ad["age_group"] not in ["all", "any"]:
-                    target_info += f",  Target: {ad['age_group']}"
+                    targeting.append(f"Target: {ad['age_group']}")
                 if "gender" in ad and ad["gender"] not in ["both", "any"]:
-                    target_info += f",  {ad['gender']}"
+                    targeting.append(f"{ad['gender']}")
                 if "temperature" in ad and ad["temperature"] not in ["any"]:
-                    target_info += f",  {ad['temperature']} weather"
+                    targeting.append(f"{ad['temperature']} weather")
+                
+                # Join with commas and add parentheses only if there is targeting info
+                if targeting:
+                    target_info += ",  " + ",  ".join(targeting)
                 
                 # Update the info label
                 self.ad_info_label.config(

@@ -16,8 +16,8 @@ API_KEY = "21f1a5a08f4a1b6e1de0bc9a2eedd4e0"
 CITY = "Singapore"
 API_URL = f"http://api.openweathermap.org/data/2.5/weather?q={CITY}&appid={API_KEY}&units=metric"
 
-# Initialize DHT11 Sensor on GPIO 4
-dht_device = adafruit_dht.DHT11(board.D4)
+# Initialize DHT11 Sensor on GPIO 17
+dht_device = adafruit_dht.DHT11(board.D17)
 
 # File to store JSON data
 json_filename = "weather_data.json"

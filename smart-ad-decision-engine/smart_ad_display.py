@@ -322,18 +322,26 @@ class SmartAdDisplay:
     def start_sensor_processes(self):
         """Start the temperature/humidity sensor and engagement analyzer processes"""
         try:
-            # Use the correct path for sensor scripts
+              # Use the correct path for sensor scripts
             sensors_dir = "/home/EDGY/Documents/DynamicAdvertisementBoard/sensors"
+            base_dir = "/home/EDGY/Documents/DynamicAdvertisementBoard"  # Root directory
+
+            # Set environment variables to tell scripts where to save files
+            env = os.environ.copy()
+            env["OUTPUT_DIR"] = base_dir  # Set this to tell scripts where to save data
             
             # Start the temperature/humidity sensor process
             sensor_script = os.path.join(sensors_dir, "temp_humd_sensor.py")
             if os.path.exists(sensor_script):
                 logger.info(f"Starting temperature/humidity sensor at {sensor_script}")
-                # Use Popen to run the script in the background
-                self.sensor_process = subprocess.Popen([sys.executable, sensor_script], 
-                                                      stdout=subprocess.PIPE, 
-                                                      stderr=subprocess.PIPE,
-                                                      cwd=sensors_dir)  # Run in sensors directory
+                # Use Popen to run the script in the background with environment variables
+                self.sensor_process = subprocess.Popen(
+                    [sys.executable, sensor_script], 
+                    stdout=subprocess.PIPE, 
+                    stderr=subprocess.PIPE,
+                    cwd=base_dir,  # Run in base directory instead of sensors
+                    env=env
+                )
                 logger.info(f"Temperature/humidity sensor started with PID {self.sensor_process.pid}")
             else:
                 logger.error(f"Temperature/humidity sensor script not found at {sensor_script}")

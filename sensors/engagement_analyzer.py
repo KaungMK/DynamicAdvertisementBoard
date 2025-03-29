@@ -143,11 +143,60 @@ def ema(values, alpha=0.3):
         smoothed = alpha * val + (1 - alpha) * smoothed
     return round(smoothed)
 
+def load_existing_engagement_data():
+    """Loads existing engagement data from file if it exists"""
+    output_path = os.path.join(parent_dir, "engagement_data.json")
+    
+    # Check if file exists
+    if os.path.exists(output_path):
+        try:
+            with open(output_path, "r") as f:
+                data = json.load(f)
+            
+            # Validate file structure
+            if "audience" in data and "count" in data:
+                return data["audience"]
+            else:
+                print("Invalid engagement data structure, creating new file")
+                return []
+        except json.JSONDecodeError:
+            print("Error decoding existing engagement data, creating new file")
+            return []
+        except Exception as e:
+            print(f"Error loading existing engagement data: {e}")
+            return []
+    else:
+        print("No existing engagement data file, will create new one")
+        return []
+
 def save_engagement_data():
-    """Saves the current engagement data to a JSON file"""
+    """Saves the current engagement data to a JSON file, preserving history"""
+    global final_records
+    
+    # Load existing records first
+    existing_records = load_existing_engagement_data()
+    
+    # Determine which records are new (not already in existing_records)
+    new_records = []
+    existing_entries = set()
+    
+    # Create a set of existing entry timestamps for efficient lookup
+    for record in existing_records:
+        if "entry" in record:
+            existing_entries.add(record["entry"])
+    
+    # Add only new records that aren't already in the existing data
+    for record in final_records:
+        if record["entry"] not in existing_entries:
+            new_records.append(record)
+            
+    # Combine existing and new records
+    combined_records = existing_records + new_records
+    
+    # Update the output data
     output_data = {
-        "audience": final_records,
-        "count": len(final_records)
+        "audience": combined_records,
+        "count": len(combined_records)
     }
     
     # Save engagement data to JSON file in parent directory
@@ -155,13 +204,21 @@ def save_engagement_data():
     with open(output_path, "w") as f:
         json.dump(output_data, f, indent=2)
     
-    print(f"Saved {len(final_records)} engagement records to {output_path}")
+    print(f"Saved engagement data: {len(new_records)} new records, {len(combined_records)} total records")
+    
+    # Clear the final_records list since they've been saved
+    final_records = []
 
 # ==================
 # Main Processing Loop
 # ==================
 try:
     last_save_time = time.time()  # Initialize last save time
+    
+    # Initialize by loading any existing engagement data first
+    print("Initializing engagement analyzer...")
+    existing_records = load_existing_engagement_data()
+    print(f"Loaded {len(existing_records)} existing audience records")
     
     while True:
         # Capture frame-by-frame
@@ -242,8 +299,6 @@ try:
                         'last_centroid': centroid
                     }
                 updated_ids.append((x1,y1,x2,y2))  # Mark as seen
-
-                # Removed visualization logic that was here in the original code
                 
             except Exception as e:
                 print(f"Error processing face detection: {str(e)}")
@@ -264,7 +319,7 @@ try:
                     "entry": datetime.fromtimestamp(data['entry_time']).strftime('%Y-%m-%d %H:%M:%S'),
                     "exit": datetime.fromtimestamp(data['exit_time']).strftime('%Y-%m-%d %H:%M:%S'),
                     "duration": round(duration, 1),
-                    "age": np.median(list(data['age_queue'])),  # Robust age estimate
+                    "age": float(np.median(list(data['age_queue']))),  # Robust age estimate as float
                     "gender": Counter(data['gender_queue']).most_common(1)[0][0],  # Most frequent gender
                     "emotion": Counter(data['emotion_queue']).most_common(1)[0][0],  # Dominant emotion
                     "engagement_score": min(100, int((duration/10)*100))  # Score capped at 100

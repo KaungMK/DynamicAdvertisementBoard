@@ -238,23 +238,22 @@ class ContentDecisionEngine:
                 return None
                 
             # Extract audience information
-            audience_present = False
             audience_count = data.get('count', 0)
             age_group = "all"
             gender = "both"
             emotion = "neutral"
+            group_size = 0
             
-            # Check if there are audience records
-            audience_records = data.get('audience', [])
-            if audience_records and len(audience_records) > 0:
-                audience_present = True
+            # Check if audience_present key exists directly in the data
+            audience_present = data.get('audience_present', False)
+            
+            # If current_audience key exists, use that for real-time audience data
+            if audience_present and 'current_audience' in data:
+                current = data['current_audience']
+                group_size = current.get('count', 1)
                 
-                # Get the most recent record
-                latest_audience = audience_records[-1]
-                
-                # Extract attributes - handle the actual format in your JSON
                 # Map age value to an age group category
-                age_value = latest_audience.get('age', 0)
+                age_value = current.get('age', 30)
                 if age_value < 18:
                     age_group = "youth"
                 elif age_value < 35:
@@ -265,7 +264,7 @@ class ContentDecisionEngine:
                     age_group = "senior"
                     
                 # Handle gender format (in your JSON it's 'M' or 'F')
-                gender_code = latest_audience.get('gender', '')
+                gender_code = current.get('gender', '')
                 if gender_code == 'M':
                     gender = "male"
                 elif gender_code == 'F':
@@ -274,23 +273,23 @@ class ContentDecisionEngine:
                     gender = "both"
                     
                 # Handle emotion with proper capitalization
-                emotion = latest_audience.get('emotion', 'neutral')
+                emotion = current.get('emotion', 'neutral')
                 if emotion:
                     emotion = emotion.lower()
                 
-                logger.info(f"Got latest audience data: Count={audience_count}, "
-                           f"Age={age_value} (group: {age_group}), Gender={gender}, Emotion={emotion}")
+                logger.info(f"Got current audience data: Present={audience_present}, Count={group_size}, "
+                           f"Age Group={age_group}, Gender={gender}, Emotion={emotion}")
             else:
-                logger.info("No audience detected in the latest data")
-            
-            # Use entry timestamp from the audience record if available
+                # No current audience
+                logger.info("No active audience currently detected")
+                
+            # Use current timestamp 
             timestamp = datetime.now().isoformat()
-            if audience_present and 'entry' in latest_audience:
-                timestamp = latest_audience['entry']
             
             audience_data = {
                 "audience_present": audience_present,
                 "count": audience_count,
+                "group_size": group_size,
                 "age_group": age_group,
                 "gender": gender,
                 "emotion": emotion,

@@ -193,18 +193,61 @@ def save_engagement_data():
     # Combine existing and new records
     combined_records = existing_records + new_records
     
+    # Check if there are currently any active faces being tracked
+    current_audience_present = len(active_faces) > 0
+    
     # Update the output data
     output_data = {
         "audience": combined_records,
-        "count": len(combined_records)
+        "count": len(combined_records),
+        "audience_present": current_audience_present
     }
+    
+    # Add additional real-time information if there are active faces
+    if current_audience_present:
+        # Calculate average demographics of currently visible faces
+        all_ages = []
+        gender_counts = {"M": 0, "F": 0}
+        emotion_counts = {}
+        
+        # Gather data from all active faces
+        for face_id, face_data in active_faces.items():
+            # Get age data
+            if face_data['age_queue']:
+                all_ages.extend(face_data['age_queue'])
+            
+            # Get gender data
+            for gender in face_data['gender_queue']:
+                if gender in ["M", "F"]:
+                    gender_counts[gender] += 1
+            
+            # Get emotion data
+            for emotion in face_data['emotion_queue']:
+                emotion_counts[emotion] = emotion_counts.get(emotion, 0) + 1
+        
+        # Determine dominant gender and emotion
+        dominant_gender = "M" if gender_counts["M"] >= gender_counts["F"] else "F"
+        dominant_emotion = "Neutral"
+        if emotion_counts:
+            dominant_emotion = max(emotion_counts.items(), key=lambda x: x[1])[0]
+        
+        # Calculate average age
+        avg_age = float(np.mean(all_ages)) if all_ages else 30.0
+        
+        # Add to output data
+        output_data["current_audience"] = {
+            "count": len(active_faces),
+            "age": avg_age,
+            "gender": dominant_gender,
+            "emotion": dominant_emotion
+        }
     
     # Save engagement data to JSON file in parent directory
     output_path = os.path.join(parent_dir, "engagement_data.json")
     with open(output_path, "w") as f:
         json.dump(output_data, f, indent=2)
     
-    print(f"Saved engagement data: {len(new_records)} new records, {len(combined_records)} total records")
+    print(f"Saved engagement data: {len(new_records)} new records, {len(combined_records)} total, Current audience: {current_audience_present}")
     
     # Clear the final_records list since they've been saved
     final_records = []

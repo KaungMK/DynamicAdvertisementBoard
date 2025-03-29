@@ -567,32 +567,10 @@ class SmartAdDisplay:
 def main():
     """Main function to run the advertisement display"""
     # Create absolute paths to your data files - using the correct paths
-    sensors_dir = "/home/EDGY/Documents/DynamicAdvertisementBoard/sensors"
+    sensors_dir = "/home/EDGY/Documents/DynamicAdvertisementBoard"
     env_data_file = os.path.join(sensors_dir, "weather_data.json")
     audience_data_file = os.path.join(sensors_dir, "engagement_data.json")
-    
-    # Create empty files if they don't exist
-    for file_path in [env_data_file, audience_data_file]:
-        if not os.path.exists(file_path):
-            dirname = os.path.dirname(file_path)
-            if not os.path.exists(dirname):
-                try:
-                    os.makedirs(dirname)
-                    logger.info(f"Created directory: {dirname}")
-                except Exception as e:
-                    logger.error(f"Error creating directory {dirname}: {e}")
-            
-            try:
-                with open(file_path, 'w') as f:
-                    if "weather_data" in file_path:
-                        # Create empty weather data file
-                        f.write("[]")
-                    else:
-                        # Create empty audience data file
-                        f.write('{"audience": [], "count": 0}')
-                logger.info(f"Created empty data file at {file_path}")
-            except Exception as e:
-                logger.error(f"Error creating file {file_path}: {e}")
+
     
     # Initialize the application with the absolute paths
     root = tk.Tk()

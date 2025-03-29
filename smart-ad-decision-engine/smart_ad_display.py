@@ -272,15 +272,16 @@ class SmartAdDisplay:
         # Configure mouse wheel scrolling for both canvases
         def bind_mousewheel(event, canvas):
             canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(-1*(e.delta//120), "units"))
-        
+
         def unbind_mousewheel(event):
-            canvas.unbind_all("<MouseWheel>")
-        
+            # The issue is here - we need to know which canvas to unbind from
+            event.widget.unbind_all("<MouseWheel>")  # Use event.widget instead of canvas
+
         env_canvas.bind("<Enter>", lambda e: bind_mousewheel(e, env_canvas))
         env_canvas.bind("<Leave>", unbind_mousewheel)
         audience_canvas.bind("<Enter>", lambda e: bind_mousewheel(e, audience_canvas))
         audience_canvas.bind("<Leave>", unbind_mousewheel)
-        
+
         # Separator line between header and content
         separator = tk.Frame(self.root, height=2, bg="gray")
         separator.pack(fill="x", padx=0)
@@ -301,31 +302,31 @@ class SmartAdDisplay:
         separator2 = tk.Frame(self.root, height=2, bg="gray")
         separator2.pack(fill="x", padx=0)
         
-        # Footer frame for ad information - increased height
-        self.footer_frame = tk.Frame(self.root, bg="black", height=80)
+        # Footer frame for ad information - increased height significantly
+        self.footer_frame = tk.Frame(self.root, bg="black", height=100)
         self.footer_frame.pack(side="bottom", fill="x")
         
         # Make the footer frame maintain its height
         self.footer_frame.pack_propagate(False)
         
-        # Label to show ad info at the bottom
+        # Label to show ad info at the bottom with increased padding
         self.ad_info_label = tk.Label(
             self.footer_frame, 
             text="Loading advertisements...", 
             bg="black", 
             fg="white",
-            font=("Arial", 14),
+            font=("Arial", 16, "bold"),
             wraplength=800  # Ensure long ad titles don't get cut off
         )
-        self.ad_info_label.pack(expand=True, fill="both", padx=30, pady=25)
+        self.ad_info_label.pack(expand=True, fill="both", padx=40, pady=30)
     
     def start_sensor_processes(self):
         """Start the temperature/humidity sensor and engagement analyzer processes"""
         try:
-              # Use the correct path for sensor scripts
+            # Use the correct path for sensor scripts
             sensors_dir = "/home/EDGY/Documents/DynamicAdvertisementBoard/sensors"
             base_dir = "/home/EDGY/Documents/DynamicAdvertisementBoard"  # Root directory
-
+            
             # Set environment variables to tell scripts where to save files
             env = os.environ.copy()
             env["OUTPUT_DIR"] = base_dir  # Set this to tell scripts where to save data
@@ -351,10 +352,13 @@ class SmartAdDisplay:
             if os.path.exists(engagement_script):
                 logger.info(f"Starting engagement analyzer at {engagement_script}")
                 # Use Popen to run the script in the background
-                self.engagement_process = subprocess.Popen([sys.executable, engagement_script],
-                                                         stdout=subprocess.PIPE,
-                                                         stderr=subprocess.PIPE,
-                                                         cwd=sensors_dir)  # Run in sensors directory
+                self.engagement_process = subprocess.Popen(
+                    [sys.executable, engagement_script],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    cwd=base_dir,  # Run in base directory instead of sensors
+                    env=env
+                )
                 logger.info(f"Engagement analyzer started with PID {self.engagement_process.pid}")
             else:
                 logger.error(f"Engagement analyzer script not found at {engagement_script}")
@@ -590,7 +594,7 @@ class SmartAdDisplay:
                 # Create info text based on ad targeting with better spacing
                 target_info = f" (ID: {ad['ad_id']})"
                 
-                # Create a list of targeting criteria
+                # Create a list of targeting criteria (limit to essential info)
                 targeting = []
                 if "age_group" in ad and ad["age_group"] not in ["all", "any"]:
                     targeting.append(f"Target: {ad['age_group']}")
@@ -601,7 +605,7 @@ class SmartAdDisplay:
                 
                 # Join with commas and add parentheses only if there is targeting info
                 if targeting:
-                    target_info += ",  " + ",  ".join(targeting)
+                    target_info += ",  " + ",  ".join(targeting[:2])  # Limit to 2 targeting criteria
                 
                 # Update the info label
                 self.ad_info_label.config(

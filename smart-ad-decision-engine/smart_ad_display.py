@@ -271,31 +271,34 @@ class SmartAdDisplay:
         try:
             # Get the directory of the current script
             base_dir = os.path.dirname(os.path.abspath(__file__))
-            
+        
+            # Construct paths to sensor directory
+            sensors_dir = os.path.join(base_dir, "sensors")
+        
             # Start the temperature/humidity sensor process
-            sensor_script = os.path.join(base_dir, "temp_humd_sensor.py")
+            sensor_script = os.path.join(sensors_dir, "temp_humd_sensor.py")
             if os.path.exists(sensor_script):
                 logger.info(f"Starting temperature/humidity sensor at {sensor_script}")
                 # Use Popen to run the script in the background
                 self.sensor_process = subprocess.Popen([sys.executable, sensor_script], 
-                                                      stdout=subprocess.PIPE, 
-                                                      stderr=subprocess.PIPE)
+                                                  stdout=subprocess.PIPE, 
+                                                  stderr=subprocess.PIPE)
                 logger.info(f"Temperature/humidity sensor started with PID {self.sensor_process.pid}")
             else:
                 logger.error(f"Temperature/humidity sensor script not found at {sensor_script}")
-            
+        
             # Start the engagement analyzer process
-            engagement_script = os.path.join(base_dir, "engagement_analyzer.py")
+            engagement_script = os.path.join(sensors_dir, "engagement_analyzer.py")
             if os.path.exists(engagement_script):
                 logger.info(f"Starting engagement analyzer at {engagement_script}")
                 # Use Popen to run the script in the background
                 self.engagement_process = subprocess.Popen([sys.executable, engagement_script],
-                                                         stdout=subprocess.PIPE,
-                                                         stderr=subprocess.PIPE)
+                                                     stdout=subprocess.PIPE,
+                                                     stderr=subprocess.PIPE)
                 logger.info(f"Engagement analyzer started with PID {self.engagement_process.pid}")
             else:
                 logger.error(f"Engagement analyzer script not found at {engagement_script}")
-                
+            
         except Exception as e:
             logger.error(f"Error starting sensor processes: {e}")
     
@@ -533,8 +536,26 @@ def main():
     """Main function to run the advertisement display"""
     # Create absolute paths to your data files
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    env_data_file = os.path.join(base_dir, "weather_data.json")
-    audience_data_file = os.path.join(base_dir, "engagement_data.json")
+    sensors_dir = os.path.join(base_dir, "sensors")
+    
+    # Use the correct JSON file paths
+    env_data_file = os.path.join(sensors_dir, "latest_api_data.json")
+    audience_data_file = os.path.join(sensors_dir, "engagement_data.json")
+    
+    # Check if files exist, create them if they don't
+    for file_path in [env_data_file, audience_data_file]:
+        dir_path = os.path.dirname(file_path)
+        os.makedirs(dir_path, exist_ok=True)
+        
+        if not os.path.exists(file_path):
+            with open(file_path, 'w') as f:
+                if "weather" in file_path:
+                    # Create empty weather data file
+                    f.write("[]")
+                else:
+                    # Create empty audience data file
+                    f.write('{"audience": [], "count": 0}')
+            logger.info(f"Created empty data file at {file_path}")
     
     # Initialize the application with the absolute paths
     root = tk.Tk()
@@ -561,6 +582,3 @@ def main():
     
     # Enter the main loop
     root.mainloop()
-
-if __name__ == "__main__":
-    main()

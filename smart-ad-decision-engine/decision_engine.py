@@ -44,6 +44,14 @@ class ContentDecisionEngine:
         self.recent_displays = []  # Track recent ad displays
         self.max_history_length = 50  # Maximum number of entries to keep
         
+        # Cache for sensor data
+        self.cached_env_data = None
+        self.cached_audience_data = None
+        
+        # Track file modification times for watchdog functionality
+        self.env_file_last_modified = 0
+        self.audience_file_last_modified = 0
+        
         # Load existing history if available
         self.load_display_history()
     
@@ -86,6 +94,60 @@ class ContentDecisionEngine:
         except Exception as e:
             logger.error(f"Error saving display history: {e}")
     
+    def check_env_file_updated(self):
+        """
+        Check if the environment data file has been modified since the last check
+        
+        Returns:
+            bool: True if file has been modified, False otherwise
+        """
+        try:
+            # If file doesn't exist, return False
+            if not os.path.exists(self.env_data_file):
+                return False
+                
+            # Get the current modification time
+            current_mtime = os.path.getmtime(self.env_data_file)
+            
+            # Check if the file has been modified
+            if current_mtime > self.env_file_last_modified:
+                # Update the last modified time
+                self.env_file_last_modified = current_mtime
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error checking environment file: {e}")
+            return False
+            
+    def check_audience_file_updated(self):
+        """
+        Check if the audience data file has been modified since the last check
+        
+        Returns:
+            bool: True if file has been modified, False otherwise
+        """
+        try:
+            # If file doesn't exist, return False
+            if not os.path.exists(self.audience_data_file):
+                return False
+                
+            # Get the current modification time
+            current_mtime = os.path.getmtime(self.audience_data_file)
+            
+            # Check if the file has been modified
+            if current_mtime > self.audience_file_last_modified:
+                # Update the last modified time
+                self.audience_file_last_modified = current_mtime
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error checking audience file: {e}")
+            return False
+            
     def get_latest_weather_data(self):
         """
         Read the latest data from the weather sensor file
@@ -98,8 +160,12 @@ class ContentDecisionEngine:
             if not os.path.exists(self.env_data_file):
                 logger.error(f"Weather data file {self.env_data_file} not found")
                 return None
+            
+            # Check if we need to read the file or can use cached data
+            if self.cached_env_data and not self.check_env_file_updated():
+                return self.cached_env_data
                 
-            # File exists, try to read it
+            # File exists and has changed, try to read it
             with open(self.env_data_file, 'r') as f:
                 data = json.load(f)
                 
@@ -113,6 +179,8 @@ class ContentDecisionEngine:
             logger.info(f"Got latest weather data: Temp={latest_data.get('avg_dht_temp', 'N/A')}°C, "
                         f"Humidity={latest_data.get('avg_dht_humidity', 'N/A')}%")
             
+            # Cache the data for next time
+            self.cached_env_data = latest_data
             return latest_data
             
         except FileNotFoundError:
@@ -138,7 +206,11 @@ class ContentDecisionEngine:
                 logger.error(f"Audience data file {self.audience_data_file} not found")
                 return None
                 
-            # File exists, try to read it
+            # Check if we need to read the file or can use cached data
+            if self.cached_audience_data and not self.check_audience_file_updated():
+                return self.cached_audience_data
+                
+            # File exists and has changed, try to read it
             with open(self.audience_data_file, 'r') as f:
                 data = json.load(f)
                 
@@ -169,7 +241,7 @@ class ContentDecisionEngine:
                 logger.info(f"Got latest audience data: Count={audience_count}, "
                            f"Age={age_group}, Gender={gender}, Emotion={emotion}")
             
-            return {
+            audience_data = {
                 "audience_present": audience_present,
                 "count": audience_count,
                 "age_group": age_group,
@@ -177,6 +249,10 @@ class ContentDecisionEngine:
                 "emotion": emotion,
                 "timestamp": datetime.now().isoformat()
             }
+            
+            # Cache the data for next time
+            self.cached_audience_data = audience_data
+            return audience_data
             
         except FileNotFoundError:
             logger.error(f"Audience data file {self.audience_data_file} not found")

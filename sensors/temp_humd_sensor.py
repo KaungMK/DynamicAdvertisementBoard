@@ -11,7 +11,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # OpenWeather API Configuration
-API_KEY = os.getenv("API_KEY")  # Get API key from .env
+#API_KEY = os.getenv("API_KEY")  # Get API key from .env
+API_KEY = "21f1a5a08f4a1b6e1de0bc9a2eedd4e0"
 CITY = "Singapore"
 API_URL = f"http://api.openweathermap.org/data/2.5/weather?q={CITY}&appid={API_KEY}&units=metric"
 

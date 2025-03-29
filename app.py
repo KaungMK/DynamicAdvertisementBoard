@@ -18,7 +18,7 @@ ad_table = dynamodb.Table('ads-table')
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return redirect(url_for('analytics'))
 
 @app.route('/ad/create')
 def create_ad():
@@ -118,12 +118,12 @@ def upload_image():
     except Exception as e:
         return str(e)
 
-# ✅ New route for analytics dashboard page
+# Route for analytics dashboard page
 @app.route('/analytics')
 def analytics():
     return render_template('analytics.html')
 
-# ✅ New route to serve processed data
+# Route to serve processed data
 @app.route('/dashboard-data')
 def dashboard_data():
     try:
@@ -135,44 +135,44 @@ def dashboard_data():
         print("Scanned Items:", items)
     except Exception as e:
         print("Error reading from DynamoDB:", e)
-
-        # Return dummy data fallback
-        return jsonify({
-            'emotions': {
-                'happy': 10,
-                'sad': 5,
-                'angry': 3
-            },
-            'age_groups': {
-                '20s': 6,
-                '30s': 7,
-                '40s': 5
-            },
-            'gender_counts': {
-                'male': 9,
-                'female': 8
-            }
-        })
+        return jsonify({"error": "Failed to read from DynamoDB"}), 500
 
     # Process actual data
     emotion_counts = collections.Counter()
     age_groups = collections.Counter()
     gender_counts = collections.Counter()
+    humidity_counts = collections.Counter()
+    temperature_counts = collections.Counter()
+    ads_raw = []
 
     for item in items:
-        emotion = item.get('emotion', 'unknown').lower()
+        emotion = str(item.get('emotion', 'unknown')).strip().lower()
+        age = str(item.get('age_group', 'unknown')).strip().lower()
+        gender = str(item.get('gender', 'unknown')).strip().lower()
+        humidity = str(item.get('humidity', 'unknown')).strip().lower()
+        temperature = str(item.get('temperature', 'unknown')).strip().lower()
+
         emotion_counts[emotion] += 1
-
-        age = item.get('age_group', 'unknown').lower()
         age_groups[age] += 1
-
-        gender = item.get('gender', 'unknown').lower()
         gender_counts[gender] += 1
+        humidity_counts[humidity] += 1
+        temperature_counts[temperature] += 1
+
+        ads_raw.append({
+            "title": item.get("title", "unknown"),
+            "temperature": temperature,
+            "humidity": humidity,
+            "gender": gender,
+            "age_group": age
+        })
 
     return jsonify({
         'emotions': dict(emotion_counts),
         'age_groups': dict(age_groups),
-        'gender_counts': dict(gender_counts)
+        'gender_counts': dict(gender_counts),
+        'humidity_counts': dict(humidity_counts),
+        'temperature_counts': dict(temperature_counts),
+        'ads': ads_raw  # for scatter/insightful plots
     })
 
 if __name__ == '__main__':

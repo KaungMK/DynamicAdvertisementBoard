@@ -19,13 +19,12 @@
     color: #000000;
   }
   .navbar {
-    background-color: #001f3f !important; /* navy blue */
+    background-color: #001f3f !important;
   }
 </style>
 
 <h2 class="text-center mb-4">Real-Time Analytics Dashboard</h2>
 
-<!-- Stat Cards -->
 <div class="row text-dark mb-4">
   <div class="col-md-3 mb-3">
     <div class="card bg-primary shadow text-white">
@@ -61,7 +60,6 @@
   </div>
 </div>
 
-<!-- Chart Rows -->
 <div class="row">
   <div class="col-lg-6 mb-4">
     <div class="card bg-light text-dark shadow">
@@ -79,11 +77,35 @@
       </div>
     </div>
   </div>
-  <div class="col-lg-12 mb-4">
+  <div class="col-lg-6 mb-4">
     <div class="card bg-light text-dark shadow">
       <div class="card-body">
-        <h5 class="card-title">Engagement Over Time (Mock)</h5>
-        <canvas id="engagementChart"></canvas>
+        <h5 class="card-title">Ads by Temperature</h5>
+        <canvas id="tempChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6 mb-4">
+    <div class="card bg-light text-dark shadow">
+      <div class="card-body">
+        <h5 class="card-title">Ads by Humidity</h5>
+        <canvas id="humidityChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6 mb-4">
+    <div class="card bg-light text-dark shadow">
+      <div class="card-body">
+        <h5 class="card-title">Temperature vs Humidity (Bubble Chart)</h5>
+        <canvas id="bubbleChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6 mb-4">
+    <div class="card bg-light text-dark shadow">
+      <div class="card-body">
+        <h5 class="card-title">Ad Count by Gender and Temperature (Radar)</h5>
+        <canvas id="radarChart"></canvas>
       </div>
     </div>
   </div>
@@ -98,10 +120,14 @@
     const ageCounts = Object.values(data.age_groups || {});
     const genders = Object.keys(data.gender_counts || {});
     const genderCounts = Object.values(data.gender_counts || {});
+    const humidityGroups = Object.keys(data.humidity_counts || {});
+    const humidityCounts = Object.values(data.humidity_counts || {});
+    const temperatureGroups = Object.keys(data.temperature_counts || {});
+    const temperatureCounts = Object.values(data.temperature_counts || {});
 
     const total = genderCounts.reduce((a, b) => a + b, 0);
-    const female = data.gender_counts?.female || data.gender_counts?.Female || 0;
-    const male = data.gender_counts?.male || data.gender_counts?.Male || 0;
+    const female = data.gender_counts?.female || 0;
+    const male = data.gender_counts?.male || 0;
 
     document.getElementById("totalAds").textContent = total;
     document.getElementById("femalePercent").textContent = `${((female / total) * 100).toFixed(1)}%`;
@@ -112,20 +138,7 @@
       type: "pie",
       data: {
         labels: ageGroups,
-        datasets: [{
-          label: "Age Groups",
-          data: ageCounts,
-          backgroundColor: ["#f46a6a", "#34c38f", "#f1b44c", "#50a5f1"]
-        }]
-      },
-      options: {
-        plugins: {
-          legend: {
-            labels: {
-              color: '#000'
-            }
-          }
-        }
+        datasets: [{ label: "Age Groups", data: ageCounts, backgroundColor: ["#f46a6a", "#34c38f", "#f1b44c", "#50a5f1"] }]
       }
     });
 
@@ -133,56 +146,100 @@
       type: "doughnut",
       data: {
         labels: genders,
+        datasets: [{ label: "Genders", data: genderCounts, backgroundColor: ["#00bcd4", "#e91e63", "#9e9e9e"] }]
+      }
+    });
+
+    new Chart(document.getElementById("tempChart"), {
+      type: "bar",
+      data: {
+        labels: temperatureGroups,
+        datasets: [{ label: "Number of Ads", data: temperatureCounts, backgroundColor: "#6f42c1" }]
+      }
+    });
+
+    new Chart(document.getElementById("humidityChart"), {
+      type: "bar",
+      data: {
+        labels: humidityGroups,
+        datasets: [{ label: "Number of Ads", data: humidityCounts, backgroundColor: "#20c997" }]
+      }
+    });
+
+    // Bubble chart for temperature vs humidity
+    const tempMap = { cool: 1, hot: 2, rainy: 3 };
+    const humidMap = { low: 1, moderate: 2, high: 3 };
+    const bubbles = (data.ads || []).map(ad => {
+      const tempVal = tempMap[ad.temperature];
+      const humidVal = humidMap[ad.humidity];
+      if (tempVal && humidVal) {
+        return { x: tempVal, y: humidVal, r: 6, label: ad.title };
+      }
+    }).filter(Boolean);
+
+    new Chart(document.getElementById("bubbleChart"), {
+      type: 'bubble',
+      data: {
         datasets: [{
-          label: "Genders",
-          data: genderCounts,
-          backgroundColor: ["#00bcd4", "#e91e63", "#9e9e9e"]
+          label: 'Ads',
+          data: bubbles,
+          backgroundColor: '#ff6384'
         }]
       },
       options: {
+        parsing: false,
         plugins: {
-          legend: {
-            labels: {
-              color: '#000'
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.raw.label}`
             }
+          }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: 'Temperature' },
+            ticks: {
+              callback: val => Object.keys(tempMap).find(k => tempMap[k] === val) || val
+            },
+            min: 0, max: 4
+          },
+          y: {
+            title: { display: true, text: 'Humidity' },
+            ticks: {
+              callback: val => Object.keys(humidMap).find(k => humidMap[k] === val) || val
+            },
+            min: 0, max: 4
           }
         }
       }
     });
 
-    new Chart(document.getElementById("engagementChart"), {
-      type: "line",
+    // Radar chart by gender and temperature
+    const tempKeys = Object.keys(tempMap);
+    const genderTemp = { male: {}, female: {}, both: {}, all: {} };
+    (data.ads || []).forEach(ad => {
+      const gender = ad.gender || "unknown";
+      const temp = ad.temperature || "unknown";
+      if (!genderTemp[gender]) genderTemp[gender] = {};
+      genderTemp[gender][temp] = (genderTemp[gender][temp] || 0) + 1;
+    });
+
+    new Chart(document.getElementById("radarChart"), {
+      type: 'radar',
       data: {
-        labels: ["10am", "11am", "12pm", "1pm", "2pm"],
-        datasets: [{
-          label: "Engagement (Mock)",
-          data: [3, 5, 8, 4, 6],
-          borderColor: "#6f42c1",
-          fill: false,
-          tension: 0.3
-        }]
+        labels: tempKeys,
+        datasets: Object.entries(genderTemp).map(([gender, temps], idx) => ({
+          label: gender,
+          data: tempKeys.map(t => temps[t] || 0),
+          fill: true,
+          borderColor: `hsl(${idx * 90}, 70%, 50%)`,
+          backgroundColor: `hsla(${idx * 90}, 70%, 50%, 0.2)`
+        }))
       },
       options: {
-        plugins: {
-          legend: {
-            labels: {
-              color: '#000'
-            }
-          },
-          tooltip: {
-            bodyColor: '#000'
-          }
-        },
         scales: {
-          x: {
-            ticks: {
-              color: '#000'
-            }
-          },
-          y: {
-            ticks: {
-              color: '#000'
-            }
+          r: {
+            beginAtZero: true
           }
         }
       }

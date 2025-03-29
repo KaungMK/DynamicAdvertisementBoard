@@ -146,17 +146,46 @@ class SmartAdDisplay:
         # Create a header frame for sensor information - increased height further
         self.header_frame = tk.Frame(self.root, bg="black", height=170)
         self.header_frame.pack(side="top", fill="x")
-        
+    
         # Make the header frame maintain its height
         self.header_frame.pack_propagate(False)
-        
+    
+        # Add close button in the top-right corner
+        close_button = tk.Button(
+            self.header_frame, 
+            text="X", 
+            font=("Arial", 16, "bold"),
+            bg="red", 
+            fg="white", 
+            command=self.on_closing,  # This calls the proper cleanup function
+            width=2,
+            height=1,
+            relief=tk.RAISED,
+            bd=3
+        )
+        close_button.place(x=self.root.winfo_screenwidth()-50, y=5)
+    
+        # Add keyboard shortcut instructions
+        shortcut_label = tk.Label(
+            self.header_frame,
+            text="Press Ctrl+Q to exit",
+            bg="black",
+            fg="gray",
+            font=("Arial", 8)
+        )
+        shortcut_label.place(x=self.root.winfo_screenwidth()-150, y=45)
+    
+        # Bind additional keyboard shortcuts
+        self.root.bind("<Control-q>", lambda event: self.on_closing())
+        self.root.bind("<Control-c>", lambda event: self.on_closing())
+    
         # Top spacer
         tk.Frame(self.header_frame, height=5, bg="black").pack(fill="x")
-        
+    
         # Left side frame for environment data
         self.env_frame = tk.Frame(self.header_frame, bg="black")
         self.env_frame.pack(side="left", fill="both", expand=True, padx=20)
-        
+    
         # Environment data labels
         self.env_header = tk.Label(
             self.env_frame,
@@ -166,7 +195,7 @@ class SmartAdDisplay:
             font=("Arial", 14, "bold")
         )
         self.env_header.pack(anchor="w", pady=(5, 10))
-        
+    
         self.env_label = tk.Label(
             self.env_frame,
             text="Waiting for sensor data...",
@@ -177,11 +206,11 @@ class SmartAdDisplay:
             wraplength=400  # Prevent text from being cut off
         )
         self.env_label.pack(anchor="w", pady=5, fill="both", expand=True)
-        
+    
         # Right side frame for audience data
         self.audience_frame = tk.Frame(self.header_frame, bg="black")
         self.audience_frame.pack(side="right", fill="both", expand=True, padx=20)
-        
+    
         # Audience data labels
         self.audience_header = tk.Label(
             self.audience_frame,
@@ -191,7 +220,7 @@ class SmartAdDisplay:
             font=("Arial", 14, "bold")
         )
         self.audience_header.pack(anchor="w", pady=(5, 10))
-        
+    
         self.audience_label = tk.Label(
             self.audience_frame,
             text="Waiting for audience data...",
@@ -202,30 +231,30 @@ class SmartAdDisplay:
             wraplength=400  # Prevent text from being cut off
         )
         self.audience_label.pack(anchor="w", pady=5, fill="both", expand=True)
-        
+    
         # Separator line between header and content
         separator = tk.Frame(self.root, height=2, bg="gray")
         separator.pack(fill="x", padx=10)
-        
+    
         # Main frame for ad display
         self.ad_frame = tk.Frame(self.root, bg="black")
         self.ad_frame.pack(expand=True, fill="both")
-        
+    
         # Label to display the ad image
         self.ad_image_label = tk.Label(self.ad_frame, bg="black")
         self.ad_image_label.pack(expand=True, fill="both", pady=10)
-        
+    
         # Separator line between content and footer
         separator2 = tk.Frame(self.root, height=2, bg="gray")
         separator2.pack(fill="x", padx=10)
-        
+    
         # Footer frame for ad information - increased height
         self.footer_frame = tk.Frame(self.root, bg="black", height=80)
         self.footer_frame.pack(side="bottom", fill="x")
-        
+    
         # Make the footer frame maintain its height
         self.footer_frame.pack_propagate(False)
-        
+    
         # Label to show ad info at the bottom
         self.ad_info_label = tk.Label(
             self.footer_frame, 

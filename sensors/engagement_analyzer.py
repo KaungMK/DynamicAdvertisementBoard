@@ -11,6 +11,7 @@ import json  # For JSON data handling
 from datetime import datetime  # For timestamp conversion
 from collections import deque, Counter  # For data tracking and voting
 import os  # For path operations
+import signal  # For handling termination signals
 
 # ======================
 # Configuration Section
@@ -31,6 +32,9 @@ MIN_FACE_AREA = 2000          # Minimum face area in pixels² to consider
 FACE_Y_THRESHOLD = 0.1        # Ignore faces in top 10% of frame (often false positives)
 TRACKING_WINDOW = 15          # Number of frames to consider for stable predictions
 MIN_FACE_DIMENSION = 20       # Minimum width/height for valid face detection
+
+# Data saving parameters
+SAVE_INTERVAL = 5.0           # Save data every 5 seconds
 
 # ==================
 # Model Initialization
@@ -140,10 +144,42 @@ def ema(values, alpha=0.3):
         smoothed = alpha * val + (1 - alpha) * smoothed
     return round(smoothed)
 
+def save_engagement_data():
+    """Save the current engagement data to JSON file"""
+    # Prepare output structure
+    output_data = {
+        "audience": final_records,
+        "count": len(final_records)
+    }
+    
+    # Save engagement data to JSON file in parent directory
+    output_path = os.path.join(parent_dir, "engagement_data.json")
+    with open(output_path, "w") as f:
+        json.dump(output_data, f, indent=2)
+    
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Saved {len(final_records)} engagement records to {output_path}")
+
+def signal_handler(sig, frame):
+    """Handle termination signals gracefully"""
+    print("\nProgram terminating. Saving final data...")
+    save_engagement_data()
+    cap.release()
+    print("Cleanup complete. Exiting.")
+    exit(0)
+
+# Register signal handler for clean termination
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+
 # ==================
 # Main Processing Loop
 # ==================
+last_save_time = time.time()  # Initialize last save timestamp
+
 try:
+    print("Starting headless engagement tracking...")
+    print("Press Ctrl+C to stop the program")
+    
     while True:
         # Capture frame-by-frame
         ret, frame = cap.read()
@@ -224,22 +260,6 @@ try:
                     }
                 updated_ids.append((x1,y1,x2,y2))  # Mark as seen
 
-                # Visualization logic
-                face_data = active_faces[(x1,y1,x2,y2)]
-                # Set box color based on engagement status
-                color = (0,255,0) if calculate_engagement(face_data) else (0,0,255)
-                cv2.rectangle(frame, (x1,y1), (x2,y2), color, 2)
-                
-                # Create display labels with smoothed values
-                label = (f"{ema(list(face_data['age_queue']))}, "  # EMA age
-                         f"{weighted_gender_vote(face_data['gender_queue'])}, "  # Weighted gender
-                         f"{get_stable_emotion(face_data['emotion_queue'])}")  # Mode emotion
-                
-                # Draw text with black outline for visibility
-                cv2.putText(frame, label, (x1, y1-10), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,0), 3, cv2.LINE_AA)
-                cv2.putText(frame, label, (x1, y1-10), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2, cv2.LINE_AA)
             except Exception as e:
                 print(f"Error processing face detection: {str(e)}")
                 continue
@@ -265,25 +285,19 @@ try:
                     "engagement_score": min(100, int((duration/10)*100))  # Score capped at 100
                 })
 
-        # Display frame with annotations
-        cv2.imshow("Smart Engagement Tracker", frame)
-        if cv2.waitKey(1) == 27:  # ESC key to exit
-            break
+        # Check if it's time to save data (every SAVE_INTERVAL seconds)
+        if current_time - last_save_time >= SAVE_INTERVAL:
+            save_engagement_data()
+            last_save_time = current_time
+        
+        # Small delay to reduce CPU usage
+        time.sleep(0.01)
 
+except Exception as e:
+    print(f"Unexpected error: {str(e)}")
 finally:
-    # Cleanup and data saving
+    # Cleanup and final data saving
+    print("Cleaning up resources...")
+    save_engagement_data()
     cap.release()
-    cv2.destroyAllWindows()
-    
-    # Prepare final output structure
-    output_data = {
-        "audience": final_records,
-        "count": len(final_records)
-    }
-    
-    # Save engagement data to JSON file in parent directory
-    output_path = os.path.join(parent_dir, "engagement_data.json")
-    with open(output_path, "w") as f:
-        json.dump(output_data, f, indent=2)
-    
-    print(f"Saved {len(final_records)} engagement records to {output_path}")
+    print("Program ended.")

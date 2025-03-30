@@ -3,10 +3,11 @@
 {% block title %}Analytics{% endblock %}
 
 {% block content %}
-<!-- Load Chart.js -->
+<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
-<!-- Optional: Bootstrap (if not already included in base.html) -->
+<!-- Bootstrap -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
@@ -29,6 +30,7 @@
     background-color: #001f3f !important;
   }
 </style>
+
 <div class="container-fluid">
   <div class="row">
     <!-- Sidebar -->
@@ -58,11 +60,11 @@
         </form>
       </div>
     </div>
+
     <!-- Main Dashboard -->
     <div class="col-md-9">
       <h2 class="text-center mt-4 mb-4">Real-Time Analytics Dashboard</h2>
       <div class="row text-dark mb-4">
-        <!-- Cards -->
         <div class="col-md-3 mb-3">
           <div class="card bg-primary shadow text-white">
             <div class="card-body">
@@ -110,8 +112,9 @@
               <h3 id="allPercent" class="mb-0">0%</h3>
             </div>
           </div>
-        </div>
+        </div>             
       </div>
+
       <div class="row">
         <div class="col-lg-6 mb-4">
           <div class="card bg-light text-dark shadow">
@@ -148,7 +151,7 @@
         <div class="col-lg-6 mb-4">
           <div class="card bg-light text-dark shadow">
             <div class="card-body">
-              <h5 class="card-title">Temperature vs Humidity (Bubble Chart)</h5>
+              <h5 class="card-title">Temperature vs Humidity (Scatter Plot)</h5>
               <canvas id="bubbleChart"></canvas>
             </div>
           </div>
@@ -156,15 +159,16 @@
         <div class="col-lg-6 mb-4">
           <div class="card bg-light text-dark shadow">
             <div class="card-body">
-              <h5 class="card-title">Ad Count by Gender and Temperature (Line)</h5>
+              <h5 class="card-title">Ad Count by Title (Polar Area)</h5>
               <canvas id="radarChart"></canvas>
             </div>
           </div>
         </div>
       </div>
-    </div> <!-- End .col-md-9 -->
-  </div> <!-- End .row -->
-</div> <!-- End .container-fluid -->
+    </div>
+  </div>
+</div>
+
 <script>
   async function loadDashboardData() {
     const gender = document.getElementById("genderFilter")?.value || "All";
@@ -195,10 +199,18 @@
     document.getElementById("allPercent").textContent = `${((all / total) * 100 || 0).toFixed(1)}%`;
     document.getElementById("uniqueAges").textContent = ageGroups.length;
 
+    // Modified clearAndCreate function
     const clearAndCreate = (id, config) => {
       const old = document.getElementById(id);
       const newCanvas = old.cloneNode();
       old.parentNode.replaceChild(newCanvas, old);
+
+      // Only add datalabels plugin for charts that are not scatter
+      if (id !== "bubbleChart") {
+        config.plugins = config.plugins || [];
+        config.plugins.push(ChartDataLabels);
+      }
+
       new Chart(newCanvas, config);
     };
 
@@ -254,49 +266,51 @@
 
     const tempMap = { cool: 1, hot: 2, rainy: 3 };
     const humidMap = { low: 1, moderate: 2, high: 3 };
-
     const uniqueTitles = [...new Set(ads.map(ad => ad.title))];
     const colorMap = Object.fromEntries(uniqueTitles.map((t, i) =>
       [t, `hsl(${(i * 137.5) % 360}, 70%, 60%)`]
     ));
 
-    const bubbles = [];
-      ads.forEach((ad, index) => {
-        const tempRaw = ad.temperature?.toLowerCase().trim();
-        const humidRaw = ad.humidity?.toLowerCase().trim();
-        const tempVal = tempMap[tempRaw];
-        const humidVal = humidMap[humidRaw];
-
-        if (tempVal && humidVal) {
-          // Small jitter to avoid overlapping
-          const jitter = (Math.random() - 0.5) * 0.2;
-          bubbles.push({
-            x: tempVal + jitter,
-            y: humidVal + jitter,
-            r: 6,
-            label: ad.title,
-            backgroundColor: colorMap[ad.title]
-          });
-        } else {
-          console.warn("Skipping ad with invalid data:", ad.title, ad.temperature, ad.humidity);
-        }
+    const scatterPoints = [];
+    ads.forEach(ad => {
+      const tempRaw = ad.temperature?.toLowerCase().trim();
+      const humidRaw = ad.humidity?.toLowerCase().trim();
+      const tempVal = tempMap[tempRaw];
+      const humidVal = humidMap[humidRaw];
+      if (tempVal && humidVal) {
+        const jitter = () => (Math.random() - 0.5) * 0.3;
+        scatterPoints.push({
+          x: tempVal + jitter(),
+          y: humidVal + jitter(),
+          title: ad.title,
+          backgroundColor: colorMap[ad.title]
+        });
+      }
     });
 
     clearAndCreate("bubbleChart", {
-      type: 'bubble',
+      type: 'scatter',
       data: {
-        datasets: bubbles.map(b => ({
-          label: b.label,
-          data: [b],
-          backgroundColor: b.backgroundColor
+        datasets: scatterPoints.map(point => ({
+          label: point.title,
+          data: [{ x: point.x, y: point.y }],
+          backgroundColor: point.backgroundColor,
+          borderColor: point.backgroundColor,
+          pointRadius: 6
         }))
       },
       options: {
-        parsing: false,
         plugins: {
           tooltip: {
             callbacks: {
-              label: ctx => `${ctx.raw.label}`
+              label: ctx => `${ctx.dataset.label} at ${ctx.raw.x.toFixed(2)}, ${ctx.raw.y.toFixed(2)}`
+            }
+          },
+          legend: {
+            display: true,
+            labels: {
+              boxWidth: 14,
+              font: { size: 10 }
             }
           }
         },
@@ -306,49 +320,63 @@
             ticks: {
               callback: val => Object.keys(tempMap).find(k => tempMap[k] === val) || val
             },
-            min: 0, max: 4
+            min: 0,
+            max: 4
           },
           y: {
             title: { display: true, text: 'Humidity' },
             ticks: {
               callback: val => Object.keys(humidMap).find(k => humidMap[k] === val) || val
             },
-            min: 0, max: 4
+            min: 0,
+            max: 4
           }
         }
       }
     });
 
-    const tempKeys = Object.keys(tempMap);
-    const genderTemp = {};
+    const adTitleCounts = {};
     ads.forEach(ad => {
-      const g = ad.gender || "Unknown";
-      const t = ad.temperature || "Unknown";
-      if (!genderTemp[g]) genderTemp[g] = {};
-      genderTemp[g][t] = (genderTemp[g][t] || 0) + 1;
+      const title = ad.title?.trim();
+      if (!title) return;
+      adTitleCounts[title] = (adTitleCounts[title] || 0) + 1;
     });
 
+    const adTitles = Object.keys(adTitleCounts);
+    const adCounts = Object.values(adTitleCounts);
+    const polarColors = adTitles.map((_, i) => `hsl(${(i * 137.5) % 360}, 70%, 60%)`);
+
     clearAndCreate("radarChart", {
-      type: 'line',
+      type: 'polarArea',
       data: {
-        labels: tempKeys,
-        datasets: Object.entries(genderTemp).map(([gender, temps], idx) => ({
-          label: gender,
-          data: tempKeys.map(t => temps[t] || 0),
-          fill: false,
-          tension: 0.3,
-          borderColor: `hsl(${idx * 90}, 70%, 50%)`,
-          backgroundColor: `hsl(${idx * 90}, 70%, 50%)`
-        }))
+        labels: adTitles,
+        datasets: [{
+          label: "Ad Count by Title",
+          data: adCounts,
+          backgroundColor: polarColors
+        }]
       },
       options: {
-        scales: {
-          y: {
-            beginAtZero: true,
-            title: { display: true, text: "Ad Count" }
+        plugins: {
+          datalabels: {
+            formatter: (value, ctx) => {
+              const total = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+              return `${((value / total) * 100).toFixed(1)}%`;
+            },
+            color: '#fff',
+            font: { weight: 'bold', size: 14 }
           },
-          x: {
-            title: { display: true, text: "Temperature" }
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.label}: ${ctx.formattedValue} ad(s)`
+            }
+          },
+          legend: { position: 'top' }
+        },
+        scales: {
+          r: {
+            ticks: { display: false },
+            grid: { display: false }
           }
         }
       }

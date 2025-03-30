@@ -27,6 +27,7 @@ The Smart Advertisement Board consists of three main components:
 - **Weather Context**: Integrates temperature/humidity data to show weather-appropriate ads
 - **Historical Tracking**: Maintains records of audience engagement and ad displays
 - **Responsive Interface**: Full-screen GUI with real-time sensor data display
+- **Web Dashboard**: Real-time monitoring of system and audience metrics
 
 ## Hardware Requirements
 
@@ -45,6 +46,7 @@ The system consists of the following key components:
 - **temp_humd_sensor.py**: Temperature and humidity sensing module
 - **engagement_analyzer.py**: Computer vision-based audience detection and analysis
 - **wide_resnet.py**: Neural network model for age/gender detection
+- **flask_data_server.py**: Web dashboard for real-time system monitoring
 
 ## Installation
 
@@ -116,6 +118,16 @@ The main application automatically starts the following sensor scripts:
 
 - `sensors/temp_humd_sensor.py`: Reads temperature and humidity data
 - `sensors/engagement_analyzer.py`: Analyzes audience using computer vision
+- `flask_data_server.py`: Launches web dashboard for real-time monitoring
+
+### 3. Accessing the Web Dashboard
+
+- **URL**: `http://[RASPBERRY_PI_IP]:5000`
+- **Features**: 
+  - Real-time sensor data visualization
+  - Audience demographics
+  - System status indicators
+- Dashboard auto-updates every 3 seconds
 
 ## Understanding the Data Flow
 
@@ -128,7 +140,16 @@ The main application automatically starts the following sensor scripts:
    - Scores advertisements based on relevance to current conditions
    - Selects optimal advertisement to display
 
-3. **Advertisement Display**:
+3. **Web Dashboard**:
+   - Flask-based real-time monitoring interface
+   - Provides `/api/data` endpoint for accessing current sensor and audience data
+   - Auto-refreshes every 3 seconds
+   - Displays:
+     - Environmental sensor readings
+     - Audience demographic information
+     - System status indicators
+
+4. **Advertisement Display**:
    - Updates the full-screen interface with the selected ad
    - Shows current sensor data in the header panels
    - Rotates advertisements automatically
@@ -147,24 +168,29 @@ This branch contains a standalone Flask-based analytics dashboard for visualizin
 ```
 git checkout nina
 ```
+
 ### 2. Set up a virtual environment:
 ```
 python -m venv venv
 # For Windows
 venv/Scripts/activate
 ```
+
 ### 3. Install dependencies:
 ```
 pip install -r requirements.txt
 ```
+
 ### 4. Run the Flask app:
 ```
 python app.py
 ```
+
 ### 5. Open your browser and go to:
 ```
 http://localhost:5000/analytics
 ```
+
 ## Notes for Implementation
 
 - The system is designed to run on boot on a Raspberry Pi 5

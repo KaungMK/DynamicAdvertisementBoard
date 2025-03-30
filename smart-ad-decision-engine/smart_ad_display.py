@@ -403,8 +403,31 @@ class SmartAdDisplay:
             logger.error(f"Error starting sensor processes: {e}")
 
     def minimize_window(self, event=None):
-        """Minimize the window to taskbar"""
-        self.root.iconify()
+        """Minimize the window to taskbar by temporarily disabling overrideredirect"""
+        try:
+            # First disable overrideredirect to allow window manager to control the window
+            self.root.overrideredirect(False)
+            
+            # Now we can minimize
+            self.root.iconify()
+            
+            # Set up an event to restore overrideredirect when window is restored
+            def check_visibility():
+                if self.root.winfo_viewable():
+                    # Window is visible again, restore overrideredirect
+                    self.root.overrideredirect(True)
+                    # Make sure window stays on top
+                    self.root.attributes('-topmost', True)
+                else:
+                    # Still minimized, check again after 100ms
+                    self.root.after(100, check_visibility)
+            
+            # Start checking for window visibility
+            self.root.after(100, check_visibility)
+            
+        except Exception as e:
+            logger.error(f"Error minimizing window: {e}")
+        
         return "break"
     
     def exit_fullscreen(self, event=None):

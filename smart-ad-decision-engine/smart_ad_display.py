@@ -126,6 +126,7 @@ class SmartAdDisplay:
         # Sensor subprocess objects
         self.sensor_process = None
         self.engagement_process = None
+        self.websocket_process = None  # Add this line
         
         # Create the main layout
         self.create_layout()
@@ -342,21 +343,6 @@ class SmartAdDisplay:
     
     def start_sensor_processes(self):
         """Start the temperature/humidity sensor and engagement analyzer processes"""
-        # Start the WebSocket server process
-        websocket_script = os.path.join(sensors_dir, "websocket_server.py")
-        if os.path.exists(websocket_script):
-            logger.info(f"Starting WebSocket server at {websocket_script}")
-            self.websocket_process = subprocess.Popen(
-                [sys.executable, websocket_script],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                cwd=base_dir,
-                env=env
-            )
-            logger.info(f"WebSocket server started with PID {self.websocket_process.pid}")
-        else:
-            logger.error(f"WebSocket server script not found at {websocket_script}")
-
         try:
             # Use the correct path for sensor scripts
             sensors_dir = "/home/EDGY/Documents/DynamicAdvertisementBoard/sensors"
@@ -397,6 +383,21 @@ class SmartAdDisplay:
                 logger.info(f"Engagement analyzer started with PID {self.engagement_process.pid}")
             else:
                 logger.error(f"Engagement analyzer script not found at {engagement_script}")
+                
+            # Start the WebSocket server process
+            websocket_script = os.path.join(base_dir, "websocket_server.py")  # Put it in the base directory
+            if os.path.exists(websocket_script):
+                logger.info(f"Starting WebSocket server at {websocket_script}")
+                self.websocket_process = subprocess.Popen(
+                    [sys.executable, websocket_script],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    cwd=base_dir,
+                    env=env
+                )
+                logger.info(f"WebSocket server started with PID {self.websocket_process.pid}")
+            else:
+                logger.error(f"WebSocket server script not found at {websocket_script}")
                 
         except Exception as e:
             logger.error(f"Error starting sensor processes: {e}")

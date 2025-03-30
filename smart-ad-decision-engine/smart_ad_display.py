@@ -159,20 +159,20 @@ class SmartAdDisplay:
         control_frame = tk.Frame(self.header_frame, bg="black")
         control_frame.place(x=self.root.winfo_screenwidth()-100, y=5)
 
-        # Minimize button
-        minimize_button = tk.Button(
+        # Minimize/maximize button
+        self.minimize_button = tk.Button(
             control_frame, 
             text="_", 
             font=("Arial", 16, "bold"),
             bg="gray", 
             fg="white", 
-            command=self.minimize_window,  # New function to minimize
+            command=self.minimize_window,
             width=2,
             height=1,
             relief=tk.RAISED,
             bd=3
         )
-        minimize_button.pack(side="left", padx=5)
+        self.minimize_button.pack(side="left", padx=5)
         
         # Add close button in the top-right corner
         close_button = tk.Button(
@@ -403,30 +403,42 @@ class SmartAdDisplay:
             logger.error(f"Error starting sensor processes: {e}")
 
     def minimize_window(self, event=None):
-        """Minimize the window to taskbar by temporarily disabling overrideredirect"""
-        try:
-            # First disable overrideredirect to allow window manager to control the window
+        """Toggle between fullscreen and smaller window size"""
+        # Check if we're currently in fullscreen mode
+        if not hasattr(self, 'is_minimized') or not self.is_minimized:
+            # Switch to smaller window
+            self.is_minimized = True
+            
+            # Disable fullscreen and window manager override
+            self.root.attributes('-fullscreen', False)
             self.root.overrideredirect(False)
             
-            # Now we can minimize
-            self.root.iconify()
+            # Set a reasonable smaller size (e.g., 800x600)
+            window_width = 800
+            window_height = 600
             
-            # Set up an event to restore overrideredirect when window is restored
-            def check_visibility():
-                if self.root.winfo_viewable():
-                    # Window is visible again, restore overrideredirect
-                    self.root.overrideredirect(True)
-                    # Make sure window stays on top
-                    self.root.attributes('-topmost', True)
-                else:
-                    # Still minimized, check again after 100ms
-                    self.root.after(100, check_visibility)
+            # Calculate position to center the window
+            screen_width = self.root.winfo_screenwidth()
+            screen_height = self.root.winfo_screenheight()
+            x_position = (screen_width - window_width) // 2
+            y_position = (screen_height - window_height) // 2
             
-            # Start checking for window visibility
-            self.root.after(100, check_visibility)
+            # Set geometry (width x height + x + y)
+            self.root.geometry(f"{window_width}x{window_height}+{x_position}+{y_position}")
             
-        except Exception as e:
-            logger.error(f"Error minimizing window: {e}")
+            # Update button text to show "Maximize"
+            self.minimize_button.config(text="□")
+        else:
+            # Switch back to fullscreen
+            self.is_minimized = False
+            
+            # Restore fullscreen mode and window manager override
+            self.root.overrideredirect(True)
+            self.root.attributes('-fullscreen', True)
+            self.root.attributes('-topmost', True)
+            
+            # Update button text to show "Minimize"
+            self.minimize_button.config(text="_")
         
         return "break"
     

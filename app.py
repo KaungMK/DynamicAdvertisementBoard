@@ -1,12 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 import boto3
 from werkzeug.utils import secure_filename
-from urllib.parse import urlparse
 import os
 import uuid
 import collections
-
-print("AWS_ACCESS_KEY_ID:", os.getenv("AWS_ACCESS_KEY_ID"))
 
 app = Flask(__name__)
 app.secret_key = '2009EDGY'
@@ -31,7 +28,6 @@ def create_ad():
 def upload_ad():
     if 'image' not in request.files:
         return redirect(request.url)
-
     image = request.files['image']
     if image.filename == '':
         return redirect(request.url)
@@ -49,6 +45,7 @@ def upload_ad():
         )
         image_url = f"https://{S3_BUCKET}.s3.us-east-1.amazonaws.com/{s3_key}"
 
+        # Get form fields
         title = request.form.get('title')
         gender = request.form.get('target_gender')
         age_group = request.form.get('target_age_group')
@@ -101,29 +98,6 @@ def display_advertisments():
         return str(e)
 
 
-@app.route('/upload', methods=['POST'])
-def upload_image():
-    if 'file' not in request.files:
-        return redirect(request.url)
-    file = request.files['file']
-    if file.filename == '':
-        return redirect(request.url)
-
-    filename = secure_filename(file.filename)
-
-    try:
-        s3_client.put_object(
-            Bucket=S3_BUCKET,
-            Key=filename,
-            Body=file.stream,
-            ACL="public-read"
-        )
-        image_url = f"https://{S3_BUCKET}.s3.us-east-1.amazonaws.com/{filename}"
-        return render_template('index.html', image_url=image_url)
-    except Exception as e:
-        return str(e)
-
-
 @app.route('/analytics')
 def analytics():
     return render_template('analytics.html')
@@ -133,6 +107,9 @@ def analytics():
 def dashboard_data():
     gender_filter = request.args.get("gender")
     temp_filter = request.args.get("temperature")
+    humidity_filter = request.args.get("humidity")
+    age_filter = request.args.get("age_group")
+    title_filter = request.args.get("title")
 
     try:
         response = ad_table.scan()
@@ -143,13 +120,23 @@ def dashboard_data():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-    # Apply filters
+    # Apply filters (case-insensitive)
     if gender_filter and gender_filter != "All":
         items = [item for item in items if str(item.get("gender", "")).strip().title() == gender_filter]
 
     if temp_filter and temp_filter != "All":
         items = [item for item in items if str(item.get("temperature", "")).strip().title() == temp_filter]
 
+    if humidity_filter and humidity_filter != "All":
+        items = [item for item in items if str(item.get("humidity", "")).strip().title() == humidity_filter]
+
+    if age_filter and age_filter != "All":
+        items = [item for item in items if str(item.get("age_group", "")).strip().title() == age_filter]
+
+    if title_filter and title_filter != "All":
+        items = [item for item in items if title_filter.lower() in str(item.get("title", "")).lower()]
+
+    # Aggregations
     emotion_counts = collections.Counter()
     age_groups = collections.Counter()
     gender_counts = collections.Counter()

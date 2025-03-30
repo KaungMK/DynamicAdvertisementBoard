@@ -1,168 +1,173 @@
-# Smart Advertisement Board Dashboard (Local Storage Version)
+# Smart Advertisement Board System
 
-This dashboard integrates with the Decision Engine for the Smart Advertisement Board system that displays dynamic content based on real-time environmental and audience analysis. This version uses local file storage instead of AWS services.
+A dynamic digital advertisement system that adapts content based on real-time environmental conditions and audience analysis. The system integrates temperature/humidity sensors and computer vision-based audience detection to display the most relevant advertisements.
 
-## Features
+## System Overview
 
-- **Two Tab Interface**:
-  - **Advertisement Display** - Shows advertisements in rotation (5 seconds per ad)
-  - **Admin Dashboard** - Provides control and monitoring of the system
+The Smart Advertisement Board consists of three main components:
 
-- **Environment Simulation**:
-  - Temperature, humidity, and weather condition controls
-  - Predefined environmental scenarios
+1. **Sensor Systems**
+   - Temperature and humidity sensing
+   - Computer vision-based audience detection and analysis
 
-- **Audience Simulation**:
-  - Group size, age group, and gender distribution controls
-  - Predefined audience scenarios
+2. **Decision Engine**
+   - Rule-based advertisement selection
+   - Context-aware decision making based on environmental and audience data
+   - Scoring system for optimal ad selection
 
-- **Decision Engine**:
-  - Rule-based advertisement selection
-  - Context-aware decision making
-  - Scoring system based on multiple factors
-  - Performance metrics tracking
+3. **Display Interface**
+   - Full-screen advertisement display
+   - Real-time sensor data visualization
+   - Support for Raspberry Pi 5 with HDMI output
 
-- **Local Storage**:
-  - Uses local image files instead of AWS S3
-  - Stores ad metadata in a local JSON file
-  - No internet connection required
+## Key Features
 
-## Installation
+- **Dynamic Content Selection**: Displays ads based on current temperature, humidity, and audience demographics
+- **Real-time Audience Analysis**: Detects age, gender, emotion, and engagement level of viewers
+- **Weather Context**: Integrates temperature/humidity data to show weather-appropriate ads
+- **Historical Tracking**: Maintains records of audience engagement and ad displays
+- **Responsive Interface**: Full-screen GUI with real-time sensor data display
 
-1. Ensure you have Python 3.6+ installed.
-2. Install required packages:
+## Hardware Requirements
 
-```bash
-pip install pillow tkinter
-```
+- Raspberry Pi 5 (recommended) or compatible single-board computer
+- DHT11 Temperature/Humidity sensor connected to GPIO 17
+- USB webcam for audience detection
+- HDMI display for advertisement output
+- Internet connection for API data (optional)
 
-3. Create a folder called `Advertisements` and place your advertisement images (JPG/PNG files) in it.
-4. Run the create_sample_metadata.py script to generate metadata for your images:
+## Software Structure
 
-```bash
-python create_sample_metadata.py
-```
+The system consists of the following key components:
 
-## Running the Dashboard
-
-Run the dashboard:
-
-```bash
-python run_local_dashboard.py
-```
-
-Run in fullscreen mode:
-
-```bash
-python run_local_dashboard.py --fullscreen
-```
-
-Specify a custom advertisements folder:
-
-```bash
-python run_local_dashboard.py --ads-folder="path/to/ads"
-```
-
-## Files in this Project
-
-- **local_dashboard.py** - Main dashboard application with display and admin interfaces
-- **run_local_dashboard.py** - Entry point script with command line options
-- **local_content_repository.py** - Manages local advertisement content and metadata
-- **create_sample_metadata.py** - Creates initial metadata for advertisement images
-- **decision_engine.py** - Core decision-making logic
-- **environmental_analysis.py** - Simulates environmental sensing
-- **demographic_analysis.py** - Simulates audience detection
-- **display_manager.py** - Handles displaying advertisements
-- **mock_data.py** - Contains simulated data for testing
-
-## Structure of ad_metadata.json
-
-The metadata file (`ad_metadata.json`) contains information about each advertisement:
-
-```json
-[
-  {
-    "ad_id": "1",
-    "title": "coca_cola",
-    "image_file": "coca_cola.jpg",
-    "age_group": "all",
-    "gender": "both",
-    "temperature": "hot",
-    "humidity": "medium"
-  },
-  ...
-]
-```
-
-You can edit this file manually, or use the "Edit Ad Metadata" button in the Admin Dashboard.
-
-## Admin Dashboard Tabs
-
-1. **Current Status** - Shows real-time system state
-2. **Performance** - Displays ad performance metrics
-3. **Decision Rules** - View and edit decision engine rules
-4. **Ad Inventory** - Browse and manage advertisements
-
-## Usage Instructions
-
-1. Use the **Environment Settings** and **Audience Settings** panels to simulate different conditions
-2. Apply preset scenarios using the **Scenario Presets** dropdown menus
-3. Click **Show Next Advertisement** to manually advance ads or toggle **Auto-cycle ads** for automatic rotation
-4. Monitor the decision-making process and performance in the **Statistics & Monitoring** tabs
-5. Edit advertisement metadata by selecting an ad in the inventory and clicking **Edit Ad Metadata**
-
-## Notes for Implementation with Hardware
-
-To implement this system with actual Raspberry Pi and sensors:
-
-1. Replace the simulated sensor data with actual readings from GPIO-connected sensors
-2. Connect a camera and implement OpenCV or TensorFlow for audience analysis
-3. Configure the display output to work with your specific display hardware
-4. Set up automated startup on boot
-
-# Smart Advertisement Board Dashboard (AWS Cloud Version)
-
-## Connecting with aws Dynamodb & S3
+- **smart_ad_display.py**: Main application that manages the GUI and ad rotation
+- **decision_engine.py**: Core logic for selecting optimal advertisements
+- **temp_humd_sensor.py**: Temperature and humidity sensing module
+- **engagement_analyzer.py**: Computer vision-based audience detection and analysis
+- **wide_resnet.py**: Neural network model for age/gender detection
 
 ## Installation
 
-1. Ensure you have Python 3.6+ installed.
-2. Install required packages:
+### 1. Install Required Packages
 
 ```bash
-pip install boto3
+pip install -r requirements.txt
+sudo apt-get install python3-opencv python3-dlib
+```
 
+### 2. Set Up Project Directory
+
+```bash
+mkdir -p ~/Documents/DynamicAdvertisementBoard
+mkdir -p ~/Documents/DynamicAdvertisementBoard/sensors
+mkdir -p ~/Documents/DynamicAdvertisementBoard/models
+```
+
+### 3. Download Pre-trained Models
+
+The system uses pre-trained models for age/gender estimation and emotion detection. Download these to the models directory:
+
+```bash
+# Emotion detection model
+# URL: https://github.com/oarriaga/face_classification/releases/download/v0.5/emotion_little_vgg_2.h5
+# Place in: ~/Documents/DynamicAdvertisementBoard/models/
+```
+
+The age/gender model will be downloaded automatically at first run.
+
+### 4. Connect to AWS (Optional)
+
+For using AWS backend storage:
+
+```bash
+# Install AWS CLI
 sudo apt install awscli -y
-```
 
-## AWS Setup
-
-1. Create aws directory.
-
-```bash
+# Set up credentials
 mkdir -p ~/.aws
-```
-
-2. Go to AWS Details > AWS CLI > Show copy the aws credentials.
-3. Enter the aws credentials.
-
-```bash
 nano ~/.aws/credentials
 ```
-4. Press CTRL + X to exit.
-5. Press Y to confirm saving.
-6. Press Enter to save the file.
-7. Check aws credentials.
 
+Enter your AWS credentials in the format:
+```
+[default]
+aws_access_key_id=YOUR_ACCESS_KEY
+aws_secret_access_key=YOUR_SECRET_KEY
+region=us-east-1
+```
+
+Verify your credentials:
 ```bash
 aws sts get-caller-identity
 ```
-8. Should see something like below:
+
+## Running the System
+
+### 1. Start the Main Application
 
 ```bash
-{
-"UserId": "ABCDEFGHI1234567890",
-"Account": "123456789012",
-"Arn": "arn:aws:iam::123456789012:user/your-user"
-}
+cd ~/Documents/DynamicAdvertisementBoard
+python smart_ad_display.py
 ```
+
+### 2. Sensor Scripts (Auto-started by Main App)
+
+The main application automatically starts the following sensor scripts:
+
+- `sensors/temp_humd_sensor.py`: Reads temperature and humidity data
+- `sensors/engagement_analyzer.py`: Analyzes audience using computer vision
+
+## Understanding the Data Flow
+
+1. **Sensor Data Collection**:
+   - Temperature/humidity data is saved to `weather_data.json`
+   - Audience detection data is saved to `engagement_data.json`
+
+2. **Decision Engine**:
+   - Reads sensor data files every 5 seconds
+   - Scores advertisements based on relevance to current conditions
+   - Selects optimal advertisement to display
+
+3. **Advertisement Display**:
+   - Updates the full-screen interface with the selected ad
+   - Shows current sensor data in the header panels
+   - Rotates advertisements automatically
+
+## Troubleshooting
+
+- **Sensor Connectivity**: Ensure the DHT11 sensor is properly connected to GPIO 17(or whichever you prefer)
+- **Camera Issues**: Verify that the webcam is recognized (`ls /dev/video*`)
+- **Display Problems**: Use `xrandr` to check available display resolutions
+- **Audience Detection**: Ensure proper lighting for better face detection
+
+## Notes for Implementation
+
+- The system is designed to run on boot on a Raspberry Pi 5
+- To make the system start on boot, add to `/etc/rc.local`:
+  ```
+  python /home/EDGY/Documents/DynamicAdvertisementBoard/smart_ad_display.py &
+  ```
+- Press ESC key to exit fullscreen mode, or Ctrl+Q to quit entirely
+- Use VNC or SSH for remote management
+
+## Advanced Configuration
+
+### AWS Integration
+
+The system can integrate with AWS services:
+
+- **DynamoDB**: Stores advertisement metadata
+- **S3**: Stores advertisement images
+
+Edit the `AWSContentRepository` class parameters in `smart_ad_display.py` to configure your AWS settings:
+
+```python
+self.content_repository = AWSContentRepository(
+    table_name='your-dynamodb-table',
+    region_name='your-aws-region'
+)
+```
+
+### Local Storage Mode
+
+To use local storage instead of AWS, modify the `AWSContentRepository` to use local file storage.

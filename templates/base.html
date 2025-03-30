@@ -23,9 +23,9 @@
 
     body {
       background-color: #f8f9fc;
-      padding-top: 56px; /* Matches reduced navbar height */
+      padding-top: 56px;
     }
-  </style>  
+  </style>
 </head>
 <body>
 
@@ -34,12 +34,11 @@
     <div class="container">
       <a class="navbar-brand" href="/">MyAdBoard</a>
 
-      <div class="collapse navbar-collapse">
-        <ul class="navbar-nav ms-auto">
-          <li class="nav-item"><a class="nav-link text-white" href="/ad">Ads</a></li>
-          <li class="nav-item"><a class="nav-link text-white" href="/analytics">Analytics</a></li>
-        </ul>
-      </div>
+      <div class="d-flex ms-auto">
+        <button id="toggleViewBtn" class="btn btn-outline-light btn-sm" onclick="toggleView()">
+          Toggle Alternative Layout
+        </button>
+      </div>      
     </div>
   </nav>
 
@@ -47,5 +46,14 @@
   <div class="container-fluid">
     {% block content %}{% endblock %}
   </div>
+
+  <script>
+    function toggleView() {
+      const current = localStorage.getItem('viewMode') || 'vertical';
+      const next = current === 'vertical' ? 'horizontal' : 'vertical';
+      localStorage.setItem('viewMode', next);
+      location.reload();
+    }
+  </script>
 </body>
 </html>

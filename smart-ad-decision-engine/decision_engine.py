@@ -406,11 +406,12 @@ class ContentDecisionEngine:
     def calculate_demographic_relevance(self, ad, audience_context):
         """
         Calculate how relevant an ad is for the current audience demographics
+        with strict prioritization of gender first, then age group
         
         Args:
             ad (dict): Advertisement data
             audience_context (dict): Audience context data
-            
+                
         Returns:
             float: Relevance score (0.0-1.0)
         """
@@ -418,18 +419,28 @@ class ContentDecisionEngine:
             return 1.0  # If no audience, all ads are equally relevant
         
         relevance = 1.0  # Start with perfect relevance
+        gender_match = True
+        age_match = True
         
-        # Age relevance
-        if "age_group" in ad and ad["age_group"] not in ["all", "any"]:
-            audience_age = audience_context.get("age_group", "all")
-            if ad["age_group"] != audience_age and audience_age != "all":
-                relevance *= 0.5  # Reduce relevance for age mismatch
-        
-        # Gender relevance
+        # Gender matching - highest priority
         if "gender" in ad and ad["gender"] not in ["both", "any", "all"]:
             audience_gender = audience_context.get("gender", "both")
             if ad["gender"] != audience_gender and audience_gender != "both":
-                relevance *= 0.5  # Reduce relevance for gender mismatch
+                gender_match = False
+                # Severe penalty for gender mismatch
+                relevance *= 0.2
+        
+        # Age group matching - second priority
+        if "age_group" in ad and ad["age_group"] not in ["all", "any"]:
+            audience_age = audience_context.get("age_group", "all")
+            if ad["age_group"] != audience_age and audience_age != "all":
+                age_match = False
+                # Less severe penalty for age mismatch
+                relevance *= 0.4
+        
+        # Perfect demographic match gets a boost
+        if gender_match and age_match:
+            relevance *= 1.5
         
         # Special targeting based on emotion (optional enhancement)
         if "emotion" in audience_context:
@@ -438,9 +449,9 @@ class ContentDecisionEngine:
             
             # Boost relevance for mood-appropriate ads
             if emotion == "happy" and any(keyword in ad_title for keyword in ["fun", "joy", "happy", "celebration"]):
-                relevance *= 1.2
+                relevance *= 1.1
             elif emotion == "sad" and any(keyword in ad_title for keyword in ["comfort", "relax", "care"]):
-                relevance *= 1.2
+                relevance *= 1.1
         
         return relevance
     
@@ -514,7 +525,7 @@ class ContentDecisionEngine:
     def select_optimal_content(self, force_update=False):
         """
         Select the optimal advertisement based on score-based selection
-        with priority given to weather-matching ads and then audience when present
+        with priority given to audience-matching ads when audience is present
         
         Args:
             force_update (bool): If True, force read data files even if they haven't changed
@@ -529,8 +540,9 @@ class ContentDecisionEngine:
         audience_present = audience_context.get('audience_present', False)
         
         logger.info(f"Current context - Temperature: {env_context['temperature_category']}, "
-                   f"Humidity: {env_context['humidity_category']}, "
-                   f"Audience: {audience_context['age_group'] if audience_present else 'None'}")
+                f"Humidity: {env_context['humidity_category']}, "
+                f"Audience: {audience_context['age_group'] if audience_present else 'None'}, "
+                f"Gender: {audience_context['gender'] if audience_present else 'None'}")
         
         # Get all ads from repository
         all_ads = self.content_repository.get_all_ads()
@@ -539,27 +551,71 @@ class ContentDecisionEngine:
             logger.warning("No advertisements available")
             return None
             
-        # First, filter ads by temperature match
-        temp_matching_ads = []
-        other_ads = []
+        # First-level filtering: If audience present, prioritize demographic matches
+        candidate_ads = all_ads
         
-        current_temp = env_context['temperature_category']
-        
-        for ad in all_ads:
-            # Check if ad has a specific temperature and if it matches current temperature
-            if "temperature" in ad and ad["temperature"] not in ["any"]:
-                if ad["temperature"] == current_temp:
-                    temp_matching_ads.append(ad)
+        if audience_present:
+            # Filter by gender first if audience is present
+            audience_gender = audience_context.get("gender", "both")
+            gender_specific_ads = []
+            gender_neutral_ads = []
+            
+            for ad in all_ads:
+                ad_gender = ad.get("gender", "both")
+                if ad_gender == "both" or ad_gender == "any" or ad_gender == audience_gender:
+                    if ad_gender == audience_gender:
+                        gender_specific_ads.append(ad)
+                    else:
+                        gender_neutral_ads.append(ad)
+            
+            # If we have gender-specific ads for this audience, prioritize those
+            if gender_specific_ads:
+                # Further filter by age if possible
+                audience_age = audience_context.get("age_group", "all")
+                age_specific_ads = []
+                age_neutral_ads = []
+                
+                for ad in gender_specific_ads:
+                    ad_age = ad.get("age_group", "all")
+                    if ad_age == "all" or ad_age == "any" or ad_age == audience_age:
+                        if ad_age == audience_age:
+                            age_specific_ads.append(ad)
+                        else:
+                            age_neutral_ads.append(ad)
+                
+                # Choose the best potential candidates
+                if age_specific_ads:
+                    # Perfect match: right gender, right age
+                    candidate_ads = age_specific_ads
                 else:
-                    other_ads.append(ad)
+                    # Good match: right gender, generic age
+                    candidate_ads = age_neutral_ads
             else:
-                # If ad doesn't specify temperature, consider it for any temperature
-                temp_matching_ads.append(ad)
+                # Fall back to gender-neutral ads
+                candidate_ads = gender_neutral_ads
         
-        logger.info(f"Found {len(temp_matching_ads)} ads matching current temperature ({current_temp})")
-        
-        # If we don't have any temperature-matching ads, fall back to all ads
-        candidate_ads = temp_matching_ads if temp_matching_ads else all_ads
+        # If no audience or no suitable audience-targeted ads, filter by temperature
+        if not audience_present or not candidate_ads:
+            temp_matching_ads = []
+            other_ads = []
+            
+            current_temp = env_context['temperature_category']
+            
+            for ad in all_ads:
+                # Check if ad has a specific temperature and if it matches current temperature
+                if "temperature" in ad and ad["temperature"] not in ["any"]:
+                    if ad["temperature"] == current_temp:
+                        temp_matching_ads.append(ad)
+                    else:
+                        other_ads.append(ad)
+                else:
+                    # If ad doesn't specify temperature, consider it for any temperature
+                    temp_matching_ads.append(ad)
+            
+            logger.info(f"Found {len(temp_matching_ads)} ads matching current temperature ({current_temp})")
+            
+            # If we don't have any temperature-matching ads, fall back to all ads
+            candidate_ads = temp_matching_ads if temp_matching_ads else all_ads
         
         # Calculate scores for each candidate ad
         scored_ads = []
@@ -576,12 +632,12 @@ class ContentDecisionEngine:
             environmental_relevance = self.calculate_environmental_relevance(ad, env_context)
             
             # Combined score (higher is better)
-            # When audience is present: 40% history, 40% demographic, 20% environmental
-            # When no audience: 50% history, 10% demographic, 40% environmental
+            # When audience is present: 30% history, 60% demographic, 10% environmental
+            # When no audience: 40% history, 10% demographic, 50% environmental
             if audience_present:
-                combined_score = (0.4 * base_score) + (0.4 * demographic_relevance) + (0.2 * environmental_relevance)
+                combined_score = (0.3 * base_score) + (0.6 * demographic_relevance) + (0.1 * environmental_relevance)
             else:
-                combined_score = (0.5 * base_score) + (0.1 * demographic_relevance) + (0.4 * environmental_relevance)
+                combined_score = (0.4 * base_score) + (0.1 * demographic_relevance) + (0.5 * environmental_relevance)
             
             scored_ads.append({
                 "ad": ad,
@@ -615,10 +671,10 @@ class ContentDecisionEngine:
         self.update_ad_score(selected["ad"]["ad_id"])
         
         logger.info(f"Selected ad: {selected['ad']['title']} (ID: {selected['ad']['ad_id']}), "
-                   f"Score: {selected['score']:.2f}")
+                f"Score: {selected['score']:.2f}")
         logger.info(f"Selection factors - History: {selected['history_score']:.2f}, "
-                   f"Demographic: {selected['demographic_relevance']:.2f}, "
-                   f"Environmental: {selected['environmental_relevance']:.2f}")
+                f"Demographic: {selected['demographic_relevance']:.2f}, "
+                f"Environmental: {selected['environmental_relevance']:.2f}")
         
         return selected["ad"]
         

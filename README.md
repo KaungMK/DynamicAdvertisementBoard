@@ -143,7 +143,7 @@ The main application automatically starts the following sensor scripts:
 ## Analytics Dashboard (nina branch)
 This branch contains a standalone Flask-based analytics dashboard for visualizing historical ad data. It includes interactive filters, KPI summaries, and insightful charts to better understand audience and ad performance trends.
 
-### 1. Switch to the nina branch on a separate device:
+### 1. Switch to the branch on a separate device:
 ```
 git checkout nina
 ```

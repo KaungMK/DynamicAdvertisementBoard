@@ -159,7 +159,7 @@ class ContentDecisionEngine:
         
         Args:
             skip_check (bool): If True, skip checking if file has been modified
-                              and always read the file
+                            and always read the file
         
         Returns:
             dict: Latest weather data entry or default values if unavailable
@@ -170,8 +170,16 @@ class ContentDecisionEngine:
                 logger.error(f"Weather data file {self.env_data_file} not found")
                 return None
             
+            # Always read the file when skip_check is True, ignoring cache completely
+            if skip_check:
+                # Force setting the last modified time to 0 to ensure check_env_file_updated returns True next time
+                self.env_file_last_modified = 0
+                self.cached_env_data = None
+                logger.debug("Force reading weather data due to skip_check=True")
+                
             # Check if we need to read the file or can use cached data
             if not skip_check and self.cached_env_data and not self.check_env_file_updated():
+                logger.debug("Using cached weather data since file hasn't changed")
                 return self.cached_env_data
                 
             # File exists and has changed (or skip_check is True), try to read it

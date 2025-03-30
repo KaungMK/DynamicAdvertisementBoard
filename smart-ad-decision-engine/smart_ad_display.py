@@ -397,7 +397,14 @@ class SmartAdDisplay:
         # Upload sensor data to DynamoDB
         try:
             logger.info("Uploading sensor data to DynamoDB...")
-
+            import traceback
+            
+            # Custom JSON encoder to handle Decimal types for tracking file
+            class DecimalEncoder(json.JSONEncoder):
+                def default(self, o):
+                    if isinstance(o, Decimal):
+                        return str(o)
+                    return super(DecimalEncoder, self).default(o)
             
             # Initialize DynamoDB
             dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
@@ -411,16 +418,15 @@ class SmartAdDisplay:
             # Generate a unique device ID
             device_id = f"pi-{os.uname().nodename}"
             
-            # Function to convert float values to Decimal for DynamoDB
-            def float_to_decimal(obj):
+            # Function to recursively convert float values to Decimal for DynamoDB
+            def convert_floats_to_decimal(obj):
                 if isinstance(obj, dict):
-                    return {k: float_to_decimal(v) for k, v in obj.items()}
+                    return {k: convert_floats_to_decimal(v) for k, v in obj.items()}
                 elif isinstance(obj, list):
-                    return [float_to_decimal(i) for i in obj]
+                    return [convert_floats_to_decimal(i) for i in obj]
                 elif isinstance(obj, float):
                     return Decimal(str(obj))
-                else:
-                    return obj
+                return obj
             
             # Load tracking data if it exists
             tracking_data = {"environmental": {}, "audience": {}}
@@ -439,7 +445,7 @@ class SmartAdDisplay:
             
             # Function to generate hash for items
             def generate_item_hash(item):
-                # Create a copy with float values converted to strings for consistent hashing
+                # Create a copy without Decimal objects for consistent hashing
                 hash_item = {}
                 for k, v in item.items():
                     if isinstance(v, Decimal):
@@ -524,27 +530,40 @@ class SmartAdDisplay:
                                         skipped_env += 1
                                         continue
                                     
-                                    # Prepare the item with Decimal conversion
-                                    item = {
+                                    # Create the base item
+                                    base_item = {
                                         'device_id': device_id,
                                         'timestamp': timestamp or datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                        'temperature': Decimal(str(data_point.get('avg_dht_temp', 0))),
-                                        'humidity': Decimal(str(data_point.get('avg_dht_humidity', 0))),
-                                        'api_temp': Decimal(str(data_point.get('api_temp', 0))),
-                                        'api_humidity': Decimal(str(data_point.get('api_humidity', 0))),
-                                        'api_pressure': Decimal(str(data_point.get('api_pressure', 0))),
-                                        'predicted_weather': data_point.get('predicted_weather', 'Unknown'),
                                         'date': timestamp.split()[0] if timestamp and ' ' in timestamp else datetime.now().strftime("%Y-%m-%d")
                                     }
                                     
+                                    # Add numerical fields with proper conversion
+                                    numerical_fields = [
+                                        'avg_dht_temp', 'avg_dht_humidity', 
+                                        'api_temp', 'api_humidity', 'api_pressure'
+                                    ]
+                                    
+                                    for field in numerical_fields:
+                                        if field in data_point:
+                                            value = data_point[field]
+                                            if isinstance(value, (int, float)):
+                                                base_item[field.replace('avg_dht_', '')] = Decimal(str(value))
+                                    
+                                    # Add text fields directly
+                                    if 'predicted_weather' in data_point:
+                                        base_item['predicted_weather'] = data_point['predicted_weather']
+                                    
                                     # Check hash
-                                    item_hash = generate_item_hash(item)
+                                    item_hash = generate_item_hash(base_item)
                                     if item_hash in device_tracking.values():
                                         skipped_env += 1
                                         continue
                                     
+                                    # Debug item structure
+                                    logger.debug(f"Environmental item structure: {base_item}")
+                                    
                                     # Add to DynamoDB
-                                    env_table.put_item(Item=item)
+                                    env_table.put_item(Item=base_item)
                                     uploaded_env += 1
                                     
                                     # Track this item
@@ -558,6 +577,7 @@ class SmartAdDisplay:
                                     
                                 except Exception as e:
                                     logger.error(f"Error uploading environmental data point: {e}")
+                                    logger.debug(traceback.format_exc())
                             
                             tracking_data["environmental"][device_id] = device_tracking
                             logger.info(f"Environmental data: {uploaded_env} uploaded, {skipped_env} skipped, {total_env} total")
@@ -567,6 +587,7 @@ class SmartAdDisplay:
                         logger.error(f"Error parsing environmental data file: {env_data_file}")
                     except Exception as e:
                         logger.error(f"Error processing environmental data: {e}")
+                        logger.debug(traceback.format_exc())
                 else:
                     logger.warning(f"Environmental data file not found: {env_data_file}")
                 
@@ -598,38 +619,47 @@ class SmartAdDisplay:
                                     # Calculate date
                                     date = entry_timestamp.split()[0] if " " in entry_timestamp else entry_timestamp
                                     
-                                    # Prepare the item with Decimal conversion
-                                    item = {
+                                    # Create the base item
+                                    base_item = {
                                         'device_id': device_id,
                                         'entry_timestamp': entry_timestamp,
                                         'exit_timestamp': record.get('exit', entry_timestamp),
-                                        'duration': Decimal(str(record.get('duration', 0))),
-                                        'age': Decimal(str(record.get('age', 0))),
-                                        'gender': record.get('gender', 'Unknown'),
-                                        'emotion': record.get('emotion', 'Neutral'),
-                                        'engagement_score': Decimal(str(record.get('engagement_score', 0))),
                                         'date': date
                                     }
                                     
-                                    # Check hash
-                                    item_hash = generate_item_hash(item)
-                                    if item_hash in device_tracking.values():
-                                        skipped_audience += 1
-                                        continue
+                                    # Add numerical fields with proper conversion
+                                    numerical_fields = [
+                                        'duration', 'age', 'engagement_score'
+                                    ]
+                                    
+                                    for field in numerical_fields:
+                                        if field in record:
+                                            value = record[field]
+                                            if isinstance(value, (int, float)):
+                                                base_item[field] = Decimal(str(value))
+                                    
+                                    # Add text fields directly
+                                    for field in ['gender', 'emotion']:
+                                        if field in record:
+                                            base_item[field] = record[field]
+                                    
+                                    # Debug item structure
+                                    logger.debug(f"Audience item structure: {base_item}")
                                     
                                     # Add to DynamoDB
-                                    audience_table.put_item(Item=item)
+                                    audience_table.put_item(Item=base_item)
                                     uploaded_audience += 1
                                     
                                     # Track this item
                                     if entry_timestamp:
-                                        device_tracking[entry_timestamp] = item_hash
+                                        device_tracking[entry_timestamp] = generate_item_hash(base_item)
                                     
                                     # Avoid throttling
                                     time.sleep(0.05)
                                     
                                 except Exception as e:
                                     logger.error(f"Error uploading audience data point: {e}")
+                                    logger.debug(traceback.format_exc())
                             
                             tracking_data["audience"][device_id] = device_tracking
                             logger.info(f"Audience data: {uploaded_audience} uploaded, {skipped_audience} skipped, {total_audience} total")
@@ -639,13 +669,14 @@ class SmartAdDisplay:
                         logger.error(f"Error parsing audience data file: {audience_data_file}")
                     except Exception as e:
                         logger.error(f"Error processing audience data: {e}")
+                        logger.debug(traceback.format_exc())
                 else:
                     logger.warning(f"Audience data file not found: {audience_data_file}")
                 
                 # Save tracking data
                 try:
                     with open(tracking_file, 'w') as f:
-                        json.dump(tracking_data, f, indent=2)
+                        json.dump(tracking_data, f, indent=2, cls=DecimalEncoder)
                 except Exception as e:
                     logger.error(f"Error saving tracking data: {e}")
                 
@@ -653,9 +684,11 @@ class SmartAdDisplay:
                 
             except Exception as e:
                 logger.error(f"Error creating DynamoDB tables: {e}")
+                logger.debug(traceback.format_exc())
             
         except Exception as e:
             logger.error(f"Error in DynamoDB upload process: {e}")
+            logger.debug(traceback.format_exc())
         
         # Destroy the window
         self.root.destroy()

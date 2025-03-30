@@ -260,19 +260,27 @@
       [t, `hsl(${(i * 137.5) % 360}, 70%, 60%)`]
     ));
 
-    const bubbles = ads.map(ad => {
-      const tempVal = tempMap[ad.temperature?.toLowerCase()];
-      const humidVal = humidMap[ad.humidity?.toLowerCase()];
-      if (tempVal && humidVal) {
-        return {
-          x: tempVal,
-          y: humidVal,
-          r: 6,
-          label: ad.title,
-          backgroundColor: colorMap[ad.title]
-        };
-      }
-    }).filter(Boolean);
+    const bubbles = [];
+      ads.forEach((ad, index) => {
+        const tempRaw = ad.temperature?.toLowerCase().trim();
+        const humidRaw = ad.humidity?.toLowerCase().trim();
+        const tempVal = tempMap[tempRaw];
+        const humidVal = humidMap[humidRaw];
+
+        if (tempVal && humidVal) {
+          // Small jitter to avoid overlapping
+          const jitter = (Math.random() - 0.5) * 0.2;
+          bubbles.push({
+            x: tempVal + jitter,
+            y: humidVal + jitter,
+            r: 6,
+            label: ad.title,
+            backgroundColor: colorMap[ad.title]
+          });
+        } else {
+          console.warn("Skipping ad with invalid data:", ad.title, ad.temperature, ad.humidity);
+        }
+    });
 
     clearAndCreate("bubbleChart", {
       type: 'bubble',

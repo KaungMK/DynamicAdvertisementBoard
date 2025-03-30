@@ -19,6 +19,7 @@ import subprocess
 import signal
 import sys
 import hashlib
+from decimal import Decimal
 
 # Configure logging
 logging.basicConfig(
@@ -396,6 +397,7 @@ class SmartAdDisplay:
         # Upload sensor data to DynamoDB
         try:
             logger.info("Uploading sensor data to DynamoDB...")
+
             
             # Initialize DynamoDB
             dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
@@ -408,6 +410,17 @@ class SmartAdDisplay:
             
             # Generate a unique device ID
             device_id = f"pi-{os.uname().nodename}"
+            
+            # Function to convert float values to Decimal for DynamoDB
+            def float_to_decimal(obj):
+                if isinstance(obj, dict):
+                    return {k: float_to_decimal(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [float_to_decimal(i) for i in obj]
+                elif isinstance(obj, float):
+                    return Decimal(str(obj))
+                else:
+                    return obj
             
             # Load tracking data if it exists
             tracking_data = {"environmental": {}, "audience": {}}
@@ -426,7 +439,15 @@ class SmartAdDisplay:
             
             # Function to generate hash for items
             def generate_item_hash(item):
-                item_str = json.dumps(item, sort_keys=True)
+                # Create a copy with float values converted to strings for consistent hashing
+                hash_item = {}
+                for k, v in item.items():
+                    if isinstance(v, Decimal):
+                        hash_item[k] = str(v)
+                    else:
+                        hash_item[k] = v
+                
+                item_str = json.dumps(hash_item, sort_keys=True)
                 return hashlib.md5(item_str.encode()).hexdigest()
             
             # Create tables if they don't exist
@@ -503,15 +524,15 @@ class SmartAdDisplay:
                                         skipped_env += 1
                                         continue
                                     
-                                    # Prepare the item
+                                    # Prepare the item with Decimal conversion
                                     item = {
                                         'device_id': device_id,
                                         'timestamp': timestamp or datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                        'temperature': data_point.get('avg_dht_temp', 0),
-                                        'humidity': data_point.get('avg_dht_humidity', 0),
-                                        'api_temp': data_point.get('api_temp', 0),
-                                        'api_humidity': data_point.get('api_humidity', 0),
-                                        'api_pressure': data_point.get('api_pressure', 0),
+                                        'temperature': Decimal(str(data_point.get('avg_dht_temp', 0))),
+                                        'humidity': Decimal(str(data_point.get('avg_dht_humidity', 0))),
+                                        'api_temp': Decimal(str(data_point.get('api_temp', 0))),
+                                        'api_humidity': Decimal(str(data_point.get('api_humidity', 0))),
+                                        'api_pressure': Decimal(str(data_point.get('api_pressure', 0))),
                                         'predicted_weather': data_point.get('predicted_weather', 'Unknown'),
                                         'date': timestamp.split()[0] if timestamp and ' ' in timestamp else datetime.now().strftime("%Y-%m-%d")
                                     }
@@ -544,6 +565,8 @@ class SmartAdDisplay:
                             logger.error("Environmental data is not in expected list format")
                     except json.JSONDecodeError:
                         logger.error(f"Error parsing environmental data file: {env_data_file}")
+                    except Exception as e:
+                        logger.error(f"Error processing environmental data: {e}")
                 else:
                     logger.warning(f"Environmental data file not found: {env_data_file}")
                 
@@ -575,16 +598,16 @@ class SmartAdDisplay:
                                     # Calculate date
                                     date = entry_timestamp.split()[0] if " " in entry_timestamp else entry_timestamp
                                     
-                                    # Prepare the item
+                                    # Prepare the item with Decimal conversion
                                     item = {
                                         'device_id': device_id,
                                         'entry_timestamp': entry_timestamp,
                                         'exit_timestamp': record.get('exit', entry_timestamp),
-                                        'duration': record.get('duration', 0),
-                                        'age': record.get('age', 0),
+                                        'duration': Decimal(str(record.get('duration', 0))),
+                                        'age': Decimal(str(record.get('age', 0))),
                                         'gender': record.get('gender', 'Unknown'),
                                         'emotion': record.get('emotion', 'Neutral'),
-                                        'engagement_score': record.get('engagement_score', 0),
+                                        'engagement_score': Decimal(str(record.get('engagement_score', 0))),
                                         'date': date
                                     }
                                     
@@ -614,6 +637,8 @@ class SmartAdDisplay:
                             logger.error("Audience data is not in expected format")
                     except json.JSONDecodeError:
                         logger.error(f"Error parsing audience data file: {audience_data_file}")
+                    except Exception as e:
+                        logger.error(f"Error processing audience data: {e}")
                 else:
                     logger.warning(f"Audience data file not found: {audience_data_file}")
                 

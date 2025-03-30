@@ -126,7 +126,6 @@ class SmartAdDisplay:
         # Sensor subprocess objects
         self.sensor_process = None
         self.engagement_process = None
-        self.websocket_process = None  # Add this line
         
         # Create the main layout
         self.create_layout()
@@ -342,9 +341,9 @@ class SmartAdDisplay:
         self.ad_info_label.pack(expand=True, fill="both", padx=40, pady=30)
     
     def start_sensor_processes(self):
-        """Start the temperature/humidity sensor and engagement analyzer processes"""
+        """Start the temperature/humidity sensor, engagement analyzer, and Flask dashboard server processes"""
         try:
-            # Use the correct path for sensor scripts
+            # Use the correct path for scripts
             sensors_dir = "/home/EDGY/Documents/DynamicAdvertisementBoard/sensors"
             base_dir = "/home/EDGY/Documents/DynamicAdvertisementBoard"  # Root directory
             
@@ -384,20 +383,20 @@ class SmartAdDisplay:
             else:
                 logger.error(f"Engagement analyzer script not found at {engagement_script}")
                 
-            # Start the WebSocket server process
-            websocket_script = os.path.join(base_dir, "websocket_server.py")  # Put it in the base directory
-            if os.path.exists(websocket_script):
-                logger.info(f"Starting WebSocket server at {websocket_script}")
-                self.websocket_process = subprocess.Popen(
-                    [sys.executable, websocket_script],
+            # Start the Flask dashboard server process
+            flask_script = os.path.join(base_dir, "flask_data_server.py")
+            if os.path.exists(flask_script):
+                logger.info(f"Starting Flask dashboard server at {flask_script}")
+                self.flask_process = subprocess.Popen(
+                    [sys.executable, flask_script],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     cwd=base_dir,
                     env=env
                 )
-                logger.info(f"WebSocket server started with PID {self.websocket_process.pid}")
+                logger.info(f"Flask dashboard server started with PID {self.flask_process.pid}")
             else:
-                logger.error(f"WebSocket server script not found at {websocket_script}")
+                logger.error(f"Flask dashboard server script not found at {flask_script}")
                 
         except Exception as e:
             logger.error(f"Error starting sensor processes: {e}")
@@ -453,13 +452,14 @@ class SmartAdDisplay:
     def on_closing(self):
         """Handle window closing by terminating subprocesses and uploading data to DynamoDB"""
         self.stop_thread = True
-        
-        if self.websocket_process:
+
+         # Terminate Flask process
+        if hasattr(self, 'flask_process') and self.flask_process:
             try:
-                logger.info(f"Terminating WebSocket server process (PID {self.websocket_process.pid})")
-                self.websocket_process.terminate()
+                logger.info(f"Terminating Flask server process (PID {self.flask_process.pid})")
+                self.flask_process.terminate()
             except Exception as e:
-                logger.error(f"Error terminating WebSocket server: {e}")
+                logger.error(f"Error terminating Flask server: {e}")
 
         # Terminate sensor processes
         if self.sensor_process:

@@ -18,6 +18,7 @@ import os
 import subprocess
 import signal
 import sys
+import hashlib
 
 # Configure logging
 logging.basicConfig(
@@ -374,7 +375,7 @@ class SmartAdDisplay:
         return "break"
     
     def on_closing(self):
-        """Handle window closing by terminating subprocesses"""
+        """Handle window closing by terminating subprocesses and uploading data to DynamoDB"""
         self.stop_thread = True
         
         # Terminate sensor processes
@@ -391,7 +392,246 @@ class SmartAdDisplay:
                 self.engagement_process.terminate()
             except Exception as e:
                 logger.error(f"Error terminating engagement process: {e}")
+        
+        # Upload sensor data to DynamoDB
+        try:
+            logger.info("Uploading sensor data to DynamoDB...")
             
+            # Initialize DynamoDB
+            dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+            
+            # Get paths to data files
+            base_dir = "/home/EDGY/Documents/DynamicAdvertisementBoard"
+            env_data_file = os.path.join(base_dir, "weather_data.json")
+            audience_data_file = os.path.join(base_dir, "engagement_data.json")
+            tracking_file = os.path.join(base_dir, "dynamo_upload_tracking.json")
+            
+            # Generate a unique device ID
+            device_id = f"pi-{os.uname().nodename}"
+            
+            # Load tracking data if it exists
+            tracking_data = {"environmental": {}, "audience": {}}
+            if os.path.exists(tracking_file):
+                try:
+                    with open(tracking_file, 'r') as f:
+                        tracking_data = json.load(f)
+                except json.JSONDecodeError:
+                    logger.warning("Error parsing tracking file, creating new one")
+            
+            # Ensure device entries exist
+            if device_id not in tracking_data.get("environmental", {}):
+                tracking_data.setdefault("environmental", {})[device_id] = {}
+            if device_id not in tracking_data.get("audience", {}):
+                tracking_data.setdefault("audience", {})[device_id] = {}
+            
+            # Function to generate hash for items
+            def generate_item_hash(item):
+                item_str = json.dumps(item, sort_keys=True)
+                return hashlib.md5(item_str.encode()).hexdigest()
+            
+            # Create tables if they don't exist
+            try:
+                # Check or create EnvironmentalData table
+                env_table_name = 'EnvironmentalData'
+                try:
+                    env_table = dynamodb.create_table(
+                        TableName=env_table_name,
+                        KeySchema=[
+                            {'AttributeName': 'device_id', 'KeyType': 'HASH'},
+                            {'AttributeName': 'timestamp', 'KeyType': 'RANGE'}
+                        ],
+                        AttributeDefinitions=[
+                            {'AttributeName': 'device_id', 'AttributeType': 'S'},
+                            {'AttributeName': 'timestamp', 'AttributeType': 'S'}
+                        ],
+                        ProvisionedThroughput={'ReadCapacityUnits': 5, 'WriteCapacityUnits': 5}
+                    )
+                    logger.info(f"Creating {env_table_name} table...")
+                    env_table.meta.client.get_waiter('table_exists').wait(TableName=env_table_name)
+                    logger.info(f"{env_table_name} table created successfully")
+                except dynamodb.meta.client.exceptions.ResourceInUseException:
+                    logger.info(f"{env_table_name} table already exists")
+                    env_table = dynamodb.Table(env_table_name)
+                
+                # Check or create AudienceData table
+                audience_table_name = 'AudienceData'
+                try:
+                    audience_table = dynamodb.create_table(
+                        TableName=audience_table_name,
+                        KeySchema=[
+                            {'AttributeName': 'device_id', 'KeyType': 'HASH'},
+                            {'AttributeName': 'entry_timestamp', 'KeyType': 'RANGE'}
+                        ],
+                        AttributeDefinitions=[
+                            {'AttributeName': 'device_id', 'AttributeType': 'S'},
+                            {'AttributeName': 'entry_timestamp', 'AttributeType': 'S'}
+                        ],
+                        ProvisionedThroughput={'ReadCapacityUnits': 5, 'WriteCapacityUnits': 5}
+                    )
+                    logger.info(f"Creating {audience_table_name} table...")
+                    audience_table.meta.client.get_waiter('table_exists').wait(TableName=audience_table_name)
+                    logger.info(f"{audience_table_name} table created successfully")
+                except dynamodb.meta.client.exceptions.ResourceInUseException:
+                    logger.info(f"{audience_table_name} table already exists")
+                    audience_table = dynamodb.Table(audience_table_name)
+                
+                # Upload environmental data
+                if os.path.exists(env_data_file):
+                    try:
+                        with open(env_data_file, 'r') as f:
+                            env_data = json.load(f)
+                        
+                        if isinstance(env_data, list):
+                            total_env = len(env_data)
+                            uploaded_env = 0
+                            skipped_env = 0
+                            
+                            logger.info(f"Processing {total_env} environmental data points")
+                            
+                            device_tracking = tracking_data["environmental"].get(device_id, {})
+                            
+                            for data_point in env_data:
+                                try:
+                                    timestamp = data_point.get('timestamp', '')
+                                    data_id = data_point.get('id', '')
+                                    
+                                    # Skip if already processed
+                                    if data_id and data_id in device_tracking:
+                                        skipped_env += 1
+                                        continue
+                                    if timestamp and timestamp in device_tracking:
+                                        skipped_env += 1
+                                        continue
+                                    
+                                    # Prepare the item
+                                    item = {
+                                        'device_id': device_id,
+                                        'timestamp': timestamp or datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                        'temperature': data_point.get('avg_dht_temp', 0),
+                                        'humidity': data_point.get('avg_dht_humidity', 0),
+                                        'api_temp': data_point.get('api_temp', 0),
+                                        'api_humidity': data_point.get('api_humidity', 0),
+                                        'api_pressure': data_point.get('api_pressure', 0),
+                                        'predicted_weather': data_point.get('predicted_weather', 'Unknown'),
+                                        'date': timestamp.split()[0] if timestamp and ' ' in timestamp else datetime.now().strftime("%Y-%m-%d")
+                                    }
+                                    
+                                    # Check hash
+                                    item_hash = generate_item_hash(item)
+                                    if item_hash in device_tracking.values():
+                                        skipped_env += 1
+                                        continue
+                                    
+                                    # Add to DynamoDB
+                                    env_table.put_item(Item=item)
+                                    uploaded_env += 1
+                                    
+                                    # Track this item
+                                    if data_id:
+                                        device_tracking[data_id] = item_hash
+                                    if timestamp:
+                                        device_tracking[timestamp] = item_hash
+                                    
+                                    # Avoid throttling
+                                    time.sleep(0.05)
+                                    
+                                except Exception as e:
+                                    logger.error(f"Error uploading environmental data point: {e}")
+                            
+                            tracking_data["environmental"][device_id] = device_tracking
+                            logger.info(f"Environmental data: {uploaded_env} uploaded, {skipped_env} skipped, {total_env} total")
+                        else:
+                            logger.error("Environmental data is not in expected list format")
+                    except json.JSONDecodeError:
+                        logger.error(f"Error parsing environmental data file: {env_data_file}")
+                else:
+                    logger.warning(f"Environmental data file not found: {env_data_file}")
+                
+                # Upload audience data
+                if os.path.exists(audience_data_file):
+                    try:
+                        with open(audience_data_file, 'r') as f:
+                            audience_data = json.load(f)
+                        
+                        if isinstance(audience_data, dict) and 'audience' in audience_data:
+                            audience_records = audience_data.get('audience', [])
+                            total_audience = len(audience_records)
+                            uploaded_audience = 0
+                            skipped_audience = 0
+                            
+                            logger.info(f"Processing {total_audience} audience data points")
+                            
+                            device_tracking = tracking_data["audience"].get(device_id, {})
+                            
+                            for record in audience_records:
+                                try:
+                                    entry_timestamp = record.get('entry', '')
+                                    
+                                    # Skip if already processed
+                                    if entry_timestamp and entry_timestamp in device_tracking:
+                                        skipped_audience += 1
+                                        continue
+                                    
+                                    # Calculate date
+                                    date = entry_timestamp.split()[0] if " " in entry_timestamp else entry_timestamp
+                                    
+                                    # Prepare the item
+                                    item = {
+                                        'device_id': device_id,
+                                        'entry_timestamp': entry_timestamp,
+                                        'exit_timestamp': record.get('exit', entry_timestamp),
+                                        'duration': record.get('duration', 0),
+                                        'age': record.get('age', 0),
+                                        'gender': record.get('gender', 'Unknown'),
+                                        'emotion': record.get('emotion', 'Neutral'),
+                                        'engagement_score': record.get('engagement_score', 0),
+                                        'date': date
+                                    }
+                                    
+                                    # Check hash
+                                    item_hash = generate_item_hash(item)
+                                    if item_hash in device_tracking.values():
+                                        skipped_audience += 1
+                                        continue
+                                    
+                                    # Add to DynamoDB
+                                    audience_table.put_item(Item=item)
+                                    uploaded_audience += 1
+                                    
+                                    # Track this item
+                                    if entry_timestamp:
+                                        device_tracking[entry_timestamp] = item_hash
+                                    
+                                    # Avoid throttling
+                                    time.sleep(0.05)
+                                    
+                                except Exception as e:
+                                    logger.error(f"Error uploading audience data point: {e}")
+                            
+                            tracking_data["audience"][device_id] = device_tracking
+                            logger.info(f"Audience data: {uploaded_audience} uploaded, {skipped_audience} skipped, {total_audience} total")
+                        else:
+                            logger.error("Audience data is not in expected format")
+                    except json.JSONDecodeError:
+                        logger.error(f"Error parsing audience data file: {audience_data_file}")
+                else:
+                    logger.warning(f"Audience data file not found: {audience_data_file}")
+                
+                # Save tracking data
+                try:
+                    with open(tracking_file, 'w') as f:
+                        json.dump(tracking_data, f, indent=2)
+                except Exception as e:
+                    logger.error(f"Error saving tracking data: {e}")
+                
+                logger.info("Data upload complete")
+                
+            except Exception as e:
+                logger.error(f"Error creating DynamoDB tables: {e}")
+            
+        except Exception as e:
+            logger.error(f"Error in DynamoDB upload process: {e}")
+        
         # Destroy the window
         self.root.destroy()
     

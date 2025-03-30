@@ -3,6 +3,13 @@
 {% block title %}Analytics{% endblock %}
 
 {% block content %}
+<!-- Load Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Optional: Bootstrap (if not already included in base.html) -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
 <style>
   body {
     background-color: #ffffff;
@@ -23,97 +30,130 @@
   }
 </style>
 
-<h2 class="text-center mb-4">Real-Time Analytics Dashboard</h2>
+<div class="container-fluid">
+  <div class="row">
+    <!-- Sidebar -->
+    <div class="col-md-3">
+      <div class="p-3 border bg-light rounded shadow-sm">
+        <h5>Filter Panel</h5>
+        <form id="filterForm">
+          <div class="mb-3">
+            <label for="genderFilter" class="form-label">Gender</label>
+            <select class="form-select" id="genderFilter">
+              <option value="All">All</option>
+              <option value="Female">Female</option>
+              <option value="Male">Male</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="tempFilter" class="form-label">Temperature</label>
+            <select class="form-select" id="tempFilter">
+              <option value="All">All</option>
+              <option value="Cool">Cool</option>
+              <option value="Hot">Hot</option>
+              <option value="Rainy">Rainy</option>
+            </select>
+          </div>
+          <button class="btn btn-primary w-100" type="submit">Apply Filters</button>
+        </form>
+      </div>
+    </div>
 
-<div class="row text-dark mb-4">
-  <div class="col-md-3 mb-3">
-    <div class="card bg-primary shadow text-white">
-      <div class="card-body">
-        <h6 class="card-title text-uppercase">Total Ads</h6>
-        <h3 id="totalAds" class="mb-0">0</h3>
+    <!-- Main Dashboard -->
+    <div class="col-md-9">
+      <h2 class="text-center mt-4 mb-4">Real-Time Analytics Dashboard</h2>
+      <div class="row text-dark mb-4">
+        <div class="col-md-3 mb-3">
+          <div class="card bg-primary shadow text-white">
+            <div class="card-body">
+              <h6 class="card-title text-uppercase">Total Ads</h6>
+              <h3 id="totalAds" class="mb-0">0</h3>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 mb-3">
+          <div class="card bg-success shadow text-white">
+            <div class="card-body">
+              <h6 class="card-title text-uppercase">Female %</h6>
+              <h3 id="femalePercent" class="mb-0">0%</h3>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 mb-3">
+          <div class="card bg-warning shadow text-white">
+            <div class="card-body">
+              <h6 class="card-title text-uppercase">Male %</h6>
+              <h3 id="malePercent" class="mb-0">0%</h3>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 mb-3">
+          <div class="card bg-info shadow text-white">
+            <div class="card-body">
+              <h6 class="card-title text-uppercase">Age Groups</h6>
+              <h3 id="uniqueAges" class="mb-0">0</h3>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
-  <div class="col-md-3 mb-3">
-    <div class="card bg-success shadow text-white">
-      <div class="card-body">
-        <h6 class="card-title text-uppercase">Female %</h6>
-        <h3 id="femalePercent" class="mb-0">0%</h3>
+      <div class="row">
+        <div class="col-lg-6 mb-4">
+          <div class="card bg-light text-dark shadow">
+            <div class="card-body">
+              <h5 class="card-title">Age Group Distribution</h5>
+              <canvas id="ageChart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+          <div class="card bg-light text-dark shadow">
+            <div class="card-body">
+              <h5 class="card-title">Gender Breakdown</h5>
+              <canvas id="genderChart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+          <div class="card bg-light text-dark shadow">
+            <div class="card-body">
+              <h5 class="card-title">Ads by Temperature</h5>
+              <canvas id="tempChart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+          <div class="card bg-light text-dark shadow">
+            <div class="card-body">
+              <h5 class="card-title">Ads by Humidity</h5>
+              <canvas id="humidityChart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+          <div class="card bg-light text-dark shadow">
+            <div class="card-body">
+              <h5 class="card-title">Temperature vs Humidity (Bubble Chart)</h5>
+              <canvas id="bubbleChart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+          <div class="card bg-light text-dark shadow">
+            <div class="card-body">
+              <h5 class="card-title">Ad Count by Gender and Temperature (Radar)</h5>
+              <canvas id="radarChart"></canvas>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
-  <div class="col-md-3 mb-3">
-    <div class="card bg-warning shadow text-white">
-      <div class="card-body">
-        <h6 class="card-title text-uppercase">Male %</h6>
-        <h3 id="malePercent" class="mb-0">0%</h3>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3 mb-3">
-    <div class="card bg-info shadow text-white">
-      <div class="card-body">
-        <h6 class="card-title text-uppercase">Age Groups</h6>
-        <h3 id="uniqueAges" class="mb-0">0</h3>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="row">
-  <div class="col-lg-6 mb-4">
-    <div class="card bg-light text-dark shadow">
-      <div class="card-body">
-        <h5 class="card-title">Age Group Distribution</h5>
-        <canvas id="ageChart"></canvas>
-      </div>
-    </div>
-  </div>
-  <div class="col-lg-6 mb-4">
-    <div class="card bg-light text-dark shadow">
-      <div class="card-body">
-        <h5 class="card-title">Gender Breakdown</h5>
-        <canvas id="genderChart"></canvas>
-      </div>
-    </div>
-  </div>
-  <div class="col-lg-6 mb-4">
-    <div class="card bg-light text-dark shadow">
-      <div class="card-body">
-        <h5 class="card-title">Ads by Temperature</h5>
-        <canvas id="tempChart"></canvas>
-      </div>
-    </div>
-  </div>
-  <div class="col-lg-6 mb-4">
-    <div class="card bg-light text-dark shadow">
-      <div class="card-body">
-        <h5 class="card-title">Ads by Humidity</h5>
-        <canvas id="humidityChart"></canvas>
-      </div>
-    </div>
-  </div>
-  <div class="col-lg-6 mb-4">
-    <div class="card bg-light text-dark shadow">
-      <div class="card-body">
-        <h5 class="card-title">Temperature vs Humidity (Bubble Chart)</h5>
-        <canvas id="bubbleChart"></canvas>
-      </div>
-    </div>
-  </div>
-  <div class="col-lg-6 mb-4">
-    <div class="card bg-light text-dark shadow">
-      <div class="card-body">
-        <h5 class="card-title">Ad Count by Gender and Temperature (Radar)</h5>
-        <canvas id="radarChart"></canvas>
-      </div>
-    </div>
-  </div>
-</div>
-
+    </div> <!-- End .col-md-9 -->
+  </div> <!-- End .row -->
+</div> <!-- End .container-fluid -->
 <script>
   async function loadDashboardData() {
-    const res = await fetch("/dashboard-data");
+    const gender = document.getElementById("genderFilter")?.value || "All";
+    const temperature = document.getElementById("tempFilter")?.value || "All";
+    const res = await fetch(`/dashboard-data?gender=${gender}&temperature=${temperature}`);
     const data = await res.json();
 
     const ageGroups = Object.keys(data.age_groups || {});
@@ -124,17 +164,25 @@
     const humidityCounts = Object.values(data.humidity_counts || {});
     const temperatureGroups = Object.keys(data.temperature_counts || {});
     const temperatureCounts = Object.values(data.temperature_counts || {});
+    const ads = data.ads || [];
 
     const total = genderCounts.reduce((a, b) => a + b, 0);
-    const female = data.gender_counts?.female || 0;
-    const male = data.gender_counts?.male || 0;
+    const female = data.gender_counts?.Female || 0;
+    const male = data.gender_counts?.Male || 0;
 
     document.getElementById("totalAds").textContent = total;
-    document.getElementById("femalePercent").textContent = `${((female / total) * 100).toFixed(1)}%`;
-    document.getElementById("malePercent").textContent = `${((male / total) * 100).toFixed(1)}%`;
+    document.getElementById("femalePercent").textContent = `${((female / total) * 100 || 0).toFixed(1)}%`;
+    document.getElementById("malePercent").textContent = `${((male / total) * 100 || 0).toFixed(1)}%`;
     document.getElementById("uniqueAges").textContent = ageGroups.length;
 
-    new Chart(document.getElementById("ageChart"), {
+    const clearAndCreate = (id, config) => {
+      const old = document.getElementById(id);
+      const newCanvas = old.cloneNode();
+      old.parentNode.replaceChild(newCanvas, old);
+      new Chart(newCanvas, config);
+    };
+
+    clearAndCreate("ageChart", {
       type: "pie",
       data: {
         labels: ageGroups,
@@ -142,7 +190,7 @@
       }
     });
 
-    new Chart(document.getElementById("genderChart"), {
+    clearAndCreate("genderChart", {
       type: "doughnut",
       data: {
         labels: genders,
@@ -150,7 +198,7 @@
       }
     });
 
-    new Chart(document.getElementById("tempChart"), {
+    clearAndCreate("tempChart", {
       type: "bar",
       data: {
         labels: temperatureGroups,
@@ -158,7 +206,7 @@
       }
     });
 
-    new Chart(document.getElementById("humidityChart"), {
+    clearAndCreate("humidityChart", {
       type: "bar",
       data: {
         labels: humidityGroups,
@@ -166,18 +214,17 @@
       }
     });
 
-    // Bubble chart for temperature vs humidity
     const tempMap = { cool: 1, hot: 2, rainy: 3 };
     const humidMap = { low: 1, moderate: 2, high: 3 };
-    const bubbles = (data.ads || []).map(ad => {
-      const tempVal = tempMap[ad.temperature];
-      const humidVal = humidMap[ad.humidity];
+    const bubbles = ads.map(ad => {
+      const tempVal = tempMap[ad.temperature?.toLowerCase()];
+      const humidVal = humidMap[ad.humidity?.toLowerCase()];
       if (tempVal && humidVal) {
         return { x: tempVal, y: humidVal, r: 6, label: ad.title };
       }
     }).filter(Boolean);
 
-    new Chart(document.getElementById("bubbleChart"), {
+    clearAndCreate("bubbleChart", {
       type: 'bubble',
       data: {
         datasets: [{
@@ -214,17 +261,16 @@
       }
     });
 
-    // Radar chart by gender and temperature
     const tempKeys = Object.keys(tempMap);
-    const genderTemp = { male: {}, female: {}, both: {}, all: {} };
-    (data.ads || []).forEach(ad => {
-      const gender = ad.gender || "unknown";
-      const temp = ad.temperature || "unknown";
-      if (!genderTemp[gender]) genderTemp[gender] = {};
-      genderTemp[gender][temp] = (genderTemp[gender][temp] || 0) + 1;
+    const genderTemp = {};
+    ads.forEach(ad => {
+      const g = ad.gender || "Unknown";
+      const t = ad.temperature || "Unknown";
+      if (!genderTemp[g]) genderTemp[g] = {};
+      genderTemp[g][t] = (genderTemp[g][t] || 0) + 1;
     });
 
-    new Chart(document.getElementById("radarChart"), {
+    clearAndCreate("radarChart", {
       type: 'radar',
       data: {
         labels: tempKeys,
@@ -245,6 +291,11 @@
       }
     });
   }
+
+  document.getElementById("filterForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    loadDashboardData();
+  });
 
   loadDashboardData();
 </script>

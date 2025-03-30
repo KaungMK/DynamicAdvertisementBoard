@@ -16,13 +16,16 @@ S3_BUCKET = "adsbucket2009"
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 ad_table = dynamodb.Table('ads-table')
 
+
 @app.route('/')
 def index():
     return redirect(url_for('analytics'))
 
+
 @app.route('/ad/create')
 def create_ad():
     return render_template('ad_create.html')
+
 
 @app.route('/ad/upload', methods=['POST'])
 def upload_ad():
@@ -63,9 +66,10 @@ def upload_ad():
             's3_key': s3_key
         })
 
-        return redirect('/ad') 
+        return redirect('/ad')
     except Exception as e:
         return str(e)
+
 
 @app.route('/ad/delete/<string:ad_id>', methods=['POST'])
 def delete_ad(ad_id):
@@ -77,12 +81,12 @@ def delete_ad(ad_id):
             s3_client.delete_object(Bucket=S3_BUCKET, Key=item['s3_key'])
 
         ad_table.delete_item(Key={'ad_id': ad_id})
-
         flash("Advertisement deleted successfully!", "success")
         return redirect('/ad')
     except Exception as e:
         flash(f"Error deleting ad: {e}", "danger")
         return redirect('/ad')
+
 
 @app.route('/ad')
 def display_advertisments():
@@ -95,6 +99,7 @@ def display_advertisments():
         return render_template('ad.html', ads=items)
     except Exception as e:
         return str(e)
+
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
@@ -118,26 +123,33 @@ def upload_image():
     except Exception as e:
         return str(e)
 
-# Route for analytics dashboard page
+
 @app.route('/analytics')
 def analytics():
     return render_template('analytics.html')
 
-# Route to serve processed data
+
 @app.route('/dashboard-data')
 def dashboard_data():
+    gender_filter = request.args.get("gender")
+    temp_filter = request.args.get("temperature")
+
     try:
         response = ad_table.scan()
         items = response.get('Items', [])
         while 'LastEvaluatedKey' in response:
             response = ad_table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
             items.extend(response.get('Items', []))
-        print("Scanned Items:", items)
     except Exception as e:
-        print("Error reading from DynamoDB:", e)
-        return jsonify({"error": "Failed to read from DynamoDB"}), 500
+        return jsonify({"error": str(e)}), 500
 
-    # Process actual data
+    # Apply filters
+    if gender_filter and gender_filter != "All":
+        items = [item for item in items if str(item.get("gender", "")).strip().title() == gender_filter]
+
+    if temp_filter and temp_filter != "All":
+        items = [item for item in items if str(item.get("temperature", "")).strip().title() == temp_filter]
+
     emotion_counts = collections.Counter()
     age_groups = collections.Counter()
     gender_counts = collections.Counter()
@@ -146,11 +158,11 @@ def dashboard_data():
     ads_raw = []
 
     for item in items:
-        emotion = str(item.get('emotion', 'unknown')).strip().lower()
-        age = str(item.get('age_group', 'unknown')).strip().lower()
-        gender = str(item.get('gender', 'unknown')).strip().lower()
-        humidity = str(item.get('humidity', 'unknown')).strip().lower()
-        temperature = str(item.get('temperature', 'unknown')).strip().lower()
+        emotion = str(item.get('emotion', 'Unknown')).strip().title()
+        age = str(item.get('age_group', 'Unknown')).strip().title()
+        gender = str(item.get('gender', 'Unknown')).strip().title()
+        humidity = str(item.get('humidity', 'Unknown')).strip().title()
+        temperature = str(item.get('temperature', 'Unknown')).strip().title()
 
         emotion_counts[emotion] += 1
         age_groups[age] += 1
@@ -159,7 +171,7 @@ def dashboard_data():
         temperature_counts[temperature] += 1
 
         ads_raw.append({
-            "title": item.get("title", "unknown"),
+            "title": item.get("title", "Unknown"),
             "temperature": temperature,
             "humidity": humidity,
             "gender": gender,
@@ -172,8 +184,9 @@ def dashboard_data():
         'gender_counts': dict(gender_counts),
         'humidity_counts': dict(humidity_counts),
         'temperature_counts': dict(temperature_counts),
-        'ads': ads_raw  # for scatter/insightful plots
+        'ads': ads_raw
     })
+
 
 if __name__ == '__main__':
     app.run(debug=True)

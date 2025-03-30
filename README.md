@@ -140,6 +140,31 @@ The main application automatically starts the following sensor scripts:
 - **Display Problems**: Use `xrandr` to check available display resolutions
 - **Audience Detection**: Ensure proper lighting for better face detection
 
+## Analytics Dashboard (nina branch)
+This branch contains a standalone Flask-based analytics dashboard for visualizing historical ad data. It includes interactive filters, KPI summaries, and insightful charts to better understand audience and ad performance trends.
+
+### 1. Switch to the branch on a separate device:
+```
+git checkout nina
+```
+### 2. Set up a virtual environment:
+```
+python -m venv venv
+# For Windows
+venv/Scripts/activate
+```
+### 3. Install dependencies:
+```
+pip install -r requirements.txt
+```
+### 4. Run the Flask app:
+```
+python app.py
+```
+### 5. Open your browser and go to:
+```
+http://localhost:5000/analytics
+```
 ## Notes for Implementation
 
 - The system is designed to run on boot on a Raspberry Pi 5

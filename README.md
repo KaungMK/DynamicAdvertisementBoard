@@ -1,12 +1,57 @@
-# [Start Bootstrap - SB Admin 2](https://startbootstrap.com/theme/sb-admin-2/)
+# 📊 Real-time Analytics Dashboard
 
-[SB Admin 2](https://startbootstrap.com/theme/sb-admin-2/) is an open source admin dashboard theme for [Bootstrap](https://getbootstrap.com/) created by [Start Bootstrap](https://startbootstrap.com/).
+This branch provides a standalone web-based analytics dashboard for visualizing historical advertisement and audience data collected by the Smart Advertisement Board. It is built with Flask, Chart.js, and connects to your AWS DynamoDB table.
 
-For the legacy Bootstrap 3 version of this theme, you can view the [last stable release](https://github.com/StartBootstrap/startbootstrap-sb-admin-2/releases/tag/v3.3.7%2B1) of SB Admin 2 for Bootstrap 3.
+## Features
+- ### KPI Summary Cards
+  - Total Ads
+  - Percentage of Female / Male / Both / All
+  - Unique Age Groups Detected
+- ### Interactive Filters
+  - Gender
+  - Temperature
+  - Humidity
+  - Age Group
+  - Ad Title
+- ### Charts
+  - Age Group Distribution (Pie Chart)
+  - Gender Breakdown (Doughnut Chart)
+  - Ads by Temperature (Bar Chart)
+  - Ads by Humidity (Bar Chart)
+  - Temperature vs Humidity (Scatter Plot)
+  - Top 5 Ad Titles by Count (Horizontal Bar Chart)
+- ### Responsive Layout
+   - Toggle between vertical and horizontal chart layouts
+   - Fully responsive and mobile-friendly
 
-## Preview
-
-[![SB Admin 2 Preview](https://assets.startbootstrap.com/img/screenshots/themes/sb-admin-2.png)](https://startbootstrap.github.io/startbootstrap-sb-admin-2/)
-
-**[Launch Live Preview](https://startbootstrap.github.io/startbootstrap-sb-admin-2/)**
-
+## 🛠️ Installation & Running
+### 1. Clone & Checkout Branch:
+```
+git checkout nina
+```
+### 2. Create a virtual environment:
+```
+python -m venv venv
+venv\Scripts\activate
+```
+### 3. Install Dependencies
+```
+pip install -r requirements.txt
+```
+### 4. Add AWS Credentials
+Create a .env file in the root directory and add your AWS credentials:
+```
+AWS_ACCESS_KEY_ID=your_key
+AWS_SECRET_ACCESS_KEY=your_secret
+AWS_REGION=your-aws-region
+S3_BUCKET_NAME=your-s3-bucket
+DYNAMODB_TABLE=your-db-table
+```
+### 5. Run the Flask app
+```
+python app.py
+```
+Then open your browser and visit:
+```
+http://localhost:5000/analytics
+```

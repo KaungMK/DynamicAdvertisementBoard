@@ -43,7 +43,8 @@
               <option value="All">All</option>
               <option value="Female">Female</option>
               <option value="Male">Male</option>
-            </select>
+              <option value="Both">Both</option>
+            </select>            
           </div>
           <div class="mb-3">
             <label for="tempFilter" class="form-label">Temperature</label>
@@ -95,6 +96,22 @@
             </div>
           </div>
         </div>
+        <div class="col-md-3 mb-3">
+          <div class="card shadow text-white" style="background-color: #ff69b4;"> <!-- bright pink -->
+            <div class="card-body">
+              <h6 class="card-title text-uppercase">Both %</h6>
+              <h3 id="bothPercent" class="mb-0">0%</h3>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 mb-3">
+          <div class="card shadow text-white" style="background-color: #8a2be2;"> <!-- bright violet -->
+            <div class="card-body">
+              <h6 class="card-title text-uppercase">All %</h6>
+              <h3 id="allPercent" class="mb-0">0%</h3>
+            </div>
+          </div>
+        </div>             
       </div>
       <div class="row">
         <div class="col-lg-6 mb-4">
@@ -169,10 +186,14 @@
     const total = genderCounts.reduce((a, b) => a + b, 0);
     const female = data.gender_counts?.Female || 0;
     const male = data.gender_counts?.Male || 0;
+    const both = data.gender_counts?.Both || 0;
+    const all = data.gender_counts?.All || 0;
 
     document.getElementById("totalAds").textContent = total;
     document.getElementById("femalePercent").textContent = `${((female / total) * 100 || 0).toFixed(1)}%`;
     document.getElementById("malePercent").textContent = `${((male / total) * 100 || 0).toFixed(1)}%`;
+    document.getElementById("bothPercent").textContent = `${((both / total) * 100 || 0).toFixed(1)}%`;
+    document.getElementById("allPercent").textContent = `${((all / total) * 100 || 0).toFixed(1)}%`;
     document.getElementById("uniqueAges").textContent = ageGroups.length;
 
     const clearAndCreate = (id, config) => {

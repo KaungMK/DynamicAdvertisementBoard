@@ -1,0 +1,101 @@
+<!-- dashboard.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Ad Board Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        .container { display: flex; gap: 20px; }
+        .card { flex: 1; border: 1px solid #ccc; border-radius: 8px; padding: 15px; }
+        h2 { margin-top: 0; color: #333; }
+        .status { font-weight: bold; }
+        .connected { color: green; }
+        .disconnected { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Smart Advertisement Board - Live Dashboard</h1>
+    <div class="status">WebSocket Status: <span id="connection-status" class="disconnected">Disconnected</span></div>
+    
+    <div class="container">
+        <div class="card">
+            <h2>Environmental Data</h2>
+            <div id="env-data">Waiting for data...</div>
+        </div>
+        <div class="card">
+            <h2>Audience Data</h2>
+            <div id="audience-data">Waiting for data...</div>
+        </div>
+    </div>
+    
+    <script>
+        const wsUrl = "ws://localhost:8765";
+        let socket;
+        
+        function connect() {
+            socket = new WebSocket(wsUrl);
+            
+            socket.onopen = function() {
+                document.getElementById('connection-status').textContent = 'Connected';
+                document.getElementById('connection-status').className = 'connected';
+            };
+            
+            socket.onclose = function() {
+                document.getElementById('connection-status').textContent = 'Disconnected';
+                document.getElementById('connection-status').className = 'disconnected';
+                // Try to reconnect after 5 seconds
+                setTimeout(connect, 5000);
+            };
+            
+            socket.onerror = function(err) {
+                console.error('WebSocket error:', err);
+            };
+            
+            socket.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    // Update environmental data
+                    if (data.environmental) {
+                        const envHtml = `
+                            <p>Temperature: ${data.environmental.avg_dht_temp?.toFixed(1) || 'N/A'}°C</p>
+                            <p>Humidity: ${data.environmental.avg_dht_humidity?.toFixed(1) || 'N/A'}%</p>
+                            <p>Weather: ${data.environmental.predicted_weather || 'Unknown'}</p>
+                            <p>Updated: ${new Date().toLocaleTimeString()}</p>
+                        `;
+                        document.getElementById('env-data').innerHTML = envHtml;
+                    }
+                    
+                    // Update audience data
+                    if (data.audience) {
+                        const audiencePresent = data.audience.audience_present;
+                        let audienceHtml = `<p>Audience Present: ${audiencePresent ? 'Yes' : 'No'}</p>`;
+                        
+                        if (audiencePresent && data.audience.current_audience) {
+                            const current = data.audience.current_audience;
+                            audienceHtml += `
+                                <p>Count: ${current.count || 'Unknown'}</p>
+                                <p>Average Age: ${current.age?.toFixed(1) || 'Unknown'}</p>
+                                <p>Gender: ${current.gender || 'Unknown'}</p>
+                                <p>Emotion: ${current.emotion || 'Unknown'}</p>
+                            `;
+                        }
+                        
+                        audienceHtml += `<p>Total Detected: ${data.audience.count || 0} people</p>`;
+                        audienceHtml += `<p>Updated: ${new Date().toLocaleTimeString()}</p>`;
+                        
+                        document.getElementById('audience-data').innerHTML = audienceHtml;
+                    }
+                } catch (e) {
+                    console.error('Error parsing message:', e);
+                }
+            };
+        }
+        
+        // Connect on page load
+        connect();
+    </script>
+</body>
+</html>

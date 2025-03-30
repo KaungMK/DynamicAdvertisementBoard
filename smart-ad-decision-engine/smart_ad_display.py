@@ -134,6 +134,7 @@ class SmartAdDisplay:
         self.root.bind("<Escape>", self.exit_fullscreen)
         self.root.bind("<Control-q>", lambda event: self.on_closing())
         self.root.bind("<Control-c>", lambda event: self.on_closing())
+        self.root.bind("<Control-m>", self.minimize_window)  # Add minimize shortcut
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         
         # Start sensor processes
@@ -153,6 +154,24 @@ class SmartAdDisplay:
         
         # Make the header frame maintain its height
         self.header_frame.pack_propagate(False)
+        # Add window control buttons in the top-right corner
+        control_frame = tk.Frame(self.header_frame, bg="black")
+        control_frame.place(x=self.root.winfo_screenwidth()-100, y=5)
+
+        # Minimize button
+        minimize_button = tk.Button(
+            control_frame, 
+            text="_", 
+            font=("Arial", 16, "bold"),
+            bg="gray", 
+            fg="white", 
+            command=self.minimize_window,  # New function to minimize
+            width=2,
+            height=1,
+            relief=tk.RAISED,
+            bd=3
+        )
+        minimize_button.pack(side="left", padx=5)
         
         # Add close button in the top-right corner
         close_button = tk.Button(
@@ -172,12 +191,12 @@ class SmartAdDisplay:
         # Add keyboard shortcut instructions
         shortcut_label = tk.Label(
             self.header_frame,
-            text="Press Ctrl+Q to exit",
+            text="Press Ctrl+Q to exit | Press Ctrl+M to minimize",
             bg="black",
             fg="gray",
             font=("Arial", 8)
         )
-        shortcut_label.place(x=self.root.winfo_screenwidth()-150, y=45)
+        shortcut_label.place(x=self.root.winfo_screenwidth()-250, y=45)
         
         # Create a container frame for both data panels to ensure proper alignment
         data_container = tk.Frame(self.header_frame, bg="black")
@@ -323,6 +342,21 @@ class SmartAdDisplay:
     
     def start_sensor_processes(self):
         """Start the temperature/humidity sensor and engagement analyzer processes"""
+        # Start the WebSocket server process
+        websocket_script = os.path.join(sensors_dir, "websocket_server.py")
+        if os.path.exists(websocket_script):
+            logger.info(f"Starting WebSocket server at {websocket_script}")
+            self.websocket_process = subprocess.Popen(
+                [sys.executable, websocket_script],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=base_dir,
+                env=env
+            )
+            logger.info(f"WebSocket server started with PID {self.websocket_process.pid}")
+        else:
+            logger.error(f"WebSocket server script not found at {websocket_script}")
+
         try:
             # Use the correct path for sensor scripts
             sensors_dir = "/home/EDGY/Documents/DynamicAdvertisementBoard/sensors"
@@ -366,6 +400,11 @@ class SmartAdDisplay:
                 
         except Exception as e:
             logger.error(f"Error starting sensor processes: {e}")
+
+    def minimize_window(self, event=None):
+        """Minimize the window to taskbar"""
+        self.root.iconify()
+        return "break"
     
     def exit_fullscreen(self, event=None):
         """Exit fullscreen mode"""
@@ -379,6 +418,13 @@ class SmartAdDisplay:
         """Handle window closing by terminating subprocesses and uploading data to DynamoDB"""
         self.stop_thread = True
         
+        if self.websocket_process:
+            try:
+                logger.info(f"Terminating WebSocket server process (PID {self.websocket_process.pid})")
+                self.websocket_process.terminate()
+            except Exception as e:
+                logger.error(f"Error terminating WebSocket server: {e}")
+
         # Terminate sensor processes
         if self.sensor_process:
             try:

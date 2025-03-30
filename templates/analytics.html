@@ -29,7 +29,6 @@
     background-color: #001f3f !important;
   }
 </style>
-
 <div class="container-fluid">
   <div class="row">
     <!-- Sidebar -->
@@ -59,11 +58,11 @@
         </form>
       </div>
     </div>
-
     <!-- Main Dashboard -->
     <div class="col-md-9">
       <h2 class="text-center mt-4 mb-4">Real-Time Analytics Dashboard</h2>
       <div class="row text-dark mb-4">
+        <!-- Cards -->
         <div class="col-md-3 mb-3">
           <div class="card bg-primary shadow text-white">
             <div class="card-body">
@@ -97,7 +96,7 @@
           </div>
         </div>
         <div class="col-md-3 mb-3">
-          <div class="card shadow text-white" style="background-color: #ff69b4;"> <!-- bright pink -->
+          <div class="card shadow text-white" style="background-color: #ff69b4;">
             <div class="card-body">
               <h6 class="card-title text-uppercase">Both %</h6>
               <h3 id="bothPercent" class="mb-0">0%</h3>
@@ -105,13 +104,13 @@
           </div>
         </div>
         <div class="col-md-3 mb-3">
-          <div class="card shadow text-white" style="background-color: #8a2be2;"> <!-- bright violet -->
+          <div class="card shadow text-white" style="background-color: #8a2be2;">
             <div class="card-body">
               <h6 class="card-title text-uppercase">All %</h6>
               <h3 id="allPercent" class="mb-0">0%</h3>
             </div>
           </div>
-        </div>             
+        </div>
       </div>
       <div class="row">
         <div class="col-lg-6 mb-4">
@@ -157,7 +156,7 @@
         <div class="col-lg-6 mb-4">
           <div class="card bg-light text-dark shadow">
             <div class="card-body">
-              <h5 class="card-title">Ad Count by Gender and Temperature (Radar)</h5>
+              <h5 class="card-title">Ad Count by Gender and Temperature (Line)</h5>
               <canvas id="radarChart"></canvas>
             </div>
           </div>
@@ -207,7 +206,11 @@
       type: "pie",
       data: {
         labels: ageGroups,
-        datasets: [{ label: "Age Groups", data: ageCounts, backgroundColor: ["#f46a6a", "#34c38f", "#f1b44c", "#50a5f1"] }]
+        datasets: [{
+          label: "Age Groups",
+          data: ageCounts,
+          backgroundColor: ["#f46a6a", "#34c38f", "#f1b44c", "#50a5f1"]
+        }]
       }
     });
 
@@ -215,7 +218,11 @@
       type: "doughnut",
       data: {
         labels: genders,
-        datasets: [{ label: "Genders", data: genderCounts, backgroundColor: ["#00bcd4", "#e91e63", "#9e9e9e"] }]
+        datasets: [{
+          label: "Genders",
+          data: genderCounts,
+          backgroundColor: ["#00bcd4", "#e91e63", "#9e9e9e"]
+        }]
       }
     });
 
@@ -223,7 +230,12 @@
       type: "bar",
       data: {
         labels: temperatureGroups,
-        datasets: [{ label: "Number of Ads", data: temperatureCounts, backgroundColor: "#6f42c1" }]
+        datasets: [{
+          label: "Number of Ads",
+          data: temperatureCounts,
+          backgroundColor: temperatureGroups.map((_, i) =>
+            ['#ff6384', '#36a2eb', '#ffce56'][i % 3])
+        }]
       }
     });
 
@@ -231,28 +243,45 @@
       type: "bar",
       data: {
         labels: humidityGroups,
-        datasets: [{ label: "Number of Ads", data: humidityCounts, backgroundColor: "#20c997" }]
+        datasets: [{
+          label: "Number of Ads",
+          data: humidityCounts,
+          backgroundColor: humidityGroups.map((_, i) =>
+            ['#8e44ad', '#2ecc71', '#e67e22'][i % 3])
+        }]
       }
     });
 
     const tempMap = { cool: 1, hot: 2, rainy: 3 };
     const humidMap = { low: 1, moderate: 2, high: 3 };
+
+    const uniqueTitles = [...new Set(ads.map(ad => ad.title))];
+    const colorMap = Object.fromEntries(uniqueTitles.map((t, i) =>
+      [t, `hsl(${(i * 137.5) % 360}, 70%, 60%)`]
+    ));
+
     const bubbles = ads.map(ad => {
       const tempVal = tempMap[ad.temperature?.toLowerCase()];
       const humidVal = humidMap[ad.humidity?.toLowerCase()];
       if (tempVal && humidVal) {
-        return { x: tempVal, y: humidVal, r: 6, label: ad.title };
+        return {
+          x: tempVal,
+          y: humidVal,
+          r: 6,
+          label: ad.title,
+          backgroundColor: colorMap[ad.title]
+        };
       }
     }).filter(Boolean);
 
     clearAndCreate("bubbleChart", {
       type: 'bubble',
       data: {
-        datasets: [{
-          label: 'Ads',
-          data: bubbles,
-          backgroundColor: '#ff6384'
-        }]
+        datasets: bubbles.map(b => ({
+          label: b.label,
+          data: [b],
+          backgroundColor: b.backgroundColor
+        }))
       },
       options: {
         parsing: false,
@@ -292,21 +321,26 @@
     });
 
     clearAndCreate("radarChart", {
-      type: 'radar',
+      type: 'line',
       data: {
         labels: tempKeys,
         datasets: Object.entries(genderTemp).map(([gender, temps], idx) => ({
           label: gender,
           data: tempKeys.map(t => temps[t] || 0),
-          fill: true,
+          fill: false,
+          tension: 0.3,
           borderColor: `hsl(${idx * 90}, 70%, 50%)`,
-          backgroundColor: `hsla(${idx * 90}, 70%, 50%, 0.2)`
+          backgroundColor: `hsl(${idx * 90}, 70%, 50%)`
         }))
       },
       options: {
         scales: {
-          r: {
-            beginAtZero: true
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: "Ad Count" }
+          },
+          x: {
+            title: { display: true, text: "Temperature" }
           }
         }
       }

@@ -987,12 +987,15 @@ class SmartAdDisplay:
                 response = requests.get(image_url)
                 response.raise_for_status()
                 
-                # Load and display the image
+                # Load the image
                 img = Image.open(BytesIO(response.content))
                 
                 # Get available space for the image
                 screen_width = self.root.winfo_screenwidth() - 100  # Account for padding
-                screen_height = self.root.winfo_screenheight() - self.header_frame.winfo_height() - self.footer_frame.winfo_height() - 60  # Account for separators and padding
+                # Reduce the available height to ensure space for footer
+                footer_height = self.footer_frame.winfo_height()
+                # Reserve extra space to ensure text is never cut off (increased from 60 to 120)
+                screen_height = self.root.winfo_screenheight() - self.header_frame.winfo_height() - footer_height - 120
                 
                 # Calculate aspect ratio to maintain proportions
                 img_ratio = img.width / img.height
@@ -1003,14 +1006,14 @@ class SmartAdDisplay:
                     new_width = screen_width
                     new_height = int(screen_width / img_ratio)
                 else:
-                    # Image is taller than screen
-                    new_height = screen_height
-                    new_width = int(screen_height * img_ratio)
+                    # Image is taller than screen - cap at screen_height to prevent overflow
+                    new_height = min(screen_height, int(0.85 * screen_height))  # Use at most 85% of available height
+                    new_width = int(new_height * img_ratio)
                 
+                # Resize the image with high quality
                 img = img.resize((new_width, new_height), Image.LANCZOS)
                 
                 # Add a colored border/frame around the image
-                # Create a larger canvas with a colored border
                 border_width = 8  # Width of the border in pixels
                 border_color = (100, 0, 150)  # Purple color for border
                 
@@ -1042,9 +1045,14 @@ class SmartAdDisplay:
                 if targeting:
                     target_info += ",  " + ",  ".join(targeting[:2])  # Limit to 2 targeting criteria
                 
-                # Update the info label
+                # Update the info label - ensure text doesn't get cut off by limiting length
+                ad_title = ad['title']
+                max_title_length = 50  # Maximum characters before truncating
+                if len(ad_title) > max_title_length:
+                    ad_title = ad_title[:max_title_length-3] + "..."
+                    
                 self.ad_info_label.config(
-                    text=f"Now Showing:  {ad['title']}{target_info}"
+                    text=f"Now Showing:  {ad_title}{target_info}"
                 )
                 
                 logger.info(f"Successfully displayed ad: {ad['title']} (ID: {ad['ad_id']})")

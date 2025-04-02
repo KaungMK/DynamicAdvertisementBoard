@@ -60,7 +60,7 @@
       ('Male %', 'malePercent', 'bg-warning text-black', ''),
       ('Both %', 'bothPercent', 'bg-info text-black', ''),
       ('All %', 'allPercent', 'text-black', 'background-color: #8a2be2'),
-      ('Avg Engagement', 'avgEngagement', 'text-black', 'background-color: #ff69b4')
+      ('Avg Duration', 'avgDuration', 'text-black', 'background-color: #ff69b4')
     ] %}
     <div class="col-md-2 mb-3">
       <div class="card {{ class_name }} shadow text-center" style="{{ style }}">
@@ -132,7 +132,7 @@
     document.getElementById("malePercent").textContent = `${getPct("Male")}%`;
     document.getElementById("bothPercent").textContent = `${getPct("Both")}%`;
     document.getElementById("allPercent").textContent = `${getPct("All")}%`;
-    document.getElementById("avgEngagement").textContent = (data.line?.length > 0 ? (data.line.reduce((a, b) => a + b.y, 0) / data.line.length).toFixed(1) : '0.0');
+    document.getElementById("avgDuration").textContent = data.avg_duration?.toFixed(1) || '0.0';
 
     clearAndCreate("ageChart", {
       type: "pie",

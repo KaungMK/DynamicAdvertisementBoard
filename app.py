@@ -198,6 +198,15 @@ def dashboard_data():
         for emotion, times in duration_by_emotion.items() if times
     ]
 
+    # === Compute average duration from all audience records ===
+    durations = []
+    for item in audience:
+        try:
+            durations.append(float(item.get('duration', 0)))
+        except:
+            continue
+    avg_duration = sum(durations) / len(durations) if durations else 0
+
     return jsonify({
         # KPI
         'total_ads': total_ads,
@@ -205,15 +214,13 @@ def dashboard_data():
         'male_pct': round(male_pct, 1),
         'both_pct': round(both_pct, 1),
         'all_pct': round(all_pct, 1),
-        'total_age_groups': total_age_groups,
+        'avg_duration': round(avg_duration, 2),  
 
         # Charts
         'age_groups': dict(age_groups),
         'gender_counts': dict(gender_counts),
         'temperature_counts': dict(temp_counts),
         'humidity_counts': dict(humidity_counts),
-        'top_ads': dict(ad_titles.most_common(5)),
-
         # New charts
         'scatter': scatter_data,
         'avg_duration_emotion': avg_duration_chart,

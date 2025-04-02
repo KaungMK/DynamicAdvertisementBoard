@@ -111,13 +111,32 @@ def dashboard_data():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-    # KPI counts
+    # === Get filters from query string ===
+    gender_filter = request.args.get("gender", "All").lower()
+    temp_filter = request.args.get("temperature", "All").lower()
+    humidity_filter = request.args.get("humidity", "All").lower()
+    age_filter = request.args.get("age_group", "All").lower()
+    title_filter = request.args.get("title", "All").lower()
+
+    # === Apply filters to ads only ===
+    def match_filters(item):
+        return (
+            (gender_filter == "all" or str(item.get("gender", "")).lower() == gender_filter) and
+            (temp_filter == "all" or str(item.get("temperature", "")).lower() == temp_filter) and
+            (humidity_filter == "all" or str(item.get("humidity", "")).lower() == humidity_filter) and
+            (age_filter == "all" or str(item.get("age_group", "")).lower() == age_filter) and
+            (title_filter == "all" or title_filter in str(item.get("title", "")).lower())
+        )
+
+    filtered_ads = list(filter(match_filters, ads))
+
+    # === Analytics from filtered ads ===
     gender_counts = collections.Counter()
     temp_counts = collections.Counter()
     humidity_counts = collections.Counter()
     ad_titles = collections.Counter()
 
-    for ad in ads:
+    for ad in filtered_ads:
         gender = str(ad.get('gender', 'Unknown')).strip().title()
         temperature = str(ad.get('temperature', 'Unknown')).strip().title()
         humidity = str(ad.get('humidity', 'Unknown')).strip().title()
@@ -128,7 +147,7 @@ def dashboard_data():
         humidity_counts[humidity] += 1
         ad_titles[title] += 1
 
-    # Audience data for age groups
+    # === Age Group counts from audience (no filtering here) ===
     age_groups = collections.Counter()
     for item in audience:
         try:
@@ -145,26 +164,38 @@ def dashboard_data():
             group = 'Senior'
         age_groups[group] += 1
 
-    # KPI metrics
-    total_ads = len(ads)
+    # === KPI Metrics ===
+    total_ads = len(filtered_ads)
     female_pct = (gender_counts.get('Female', 0) / total_ads * 100) if total_ads else 0
     male_pct = (gender_counts.get('Male', 0) / total_ads * 100) if total_ads else 0
     both_pct = (gender_counts.get('Both', 0) / total_ads * 100) if total_ads else 0
     all_pct = (gender_counts.get('All', 0) / total_ads * 100) if total_ads else 0
     total_age_groups = len(age_groups)
 
-    # EnvironmentalData for scatter chart
+    # === Scatter: actual temperature vs humidity from EnvironmentalData ===
     scatter_data = []
     for item in env:
         try:
-            t = float(item.get('temp'))
-            h = float(item.get('humidity'))
-            scatter_data.append({'x': t, 'y': h})
+            scatter_data.append({
+                'x': float(item.get('api_temp', 0)),
+                'y': float(item.get('humidity', 0)),
+            })
+        except:
+            continue
+
+    # === Line chart: engagement score over time from AudienceData ===
+    line_data = []
+    for entry in sorted(audience, key=lambda x: x.get("exit_timestamp", "")):
+        try:
+            line_data.append({
+                'x': entry.get('exit_timestamp'),
+                'y': float(entry.get('engagement_score', 0))
+            })
         except:
             continue
 
     return jsonify({
-        # KPI boxes
+        # KPI
         'total_ads': total_ads,
         'female_pct': round(female_pct, 1),
         'male_pct': round(male_pct, 1),
@@ -172,16 +203,18 @@ def dashboard_data():
         'all_pct': round(all_pct, 1),
         'total_age_groups': total_age_groups,
 
-        # Pie/bar charts
+        # Charts
         'age_groups': dict(age_groups),
         'gender_counts': dict(gender_counts),
         'temperature_counts': dict(temp_counts),
         'humidity_counts': dict(humidity_counts),
         'top_ads': dict(ad_titles.most_common(5)),
 
-        # Scatter plot
-        'scatter': scatter_data
+        # New charts
+        'scatter': scatter_data,
+        'line': line_data
     })
+
 
 if __name__ == '__main__':
     app.run(debug=True)

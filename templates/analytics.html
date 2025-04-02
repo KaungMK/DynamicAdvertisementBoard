@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-
 {% block title %}Analytics{% endblock %}
-
 {% block content %}
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
@@ -26,47 +26,26 @@
 </style>
 
 <div class="container-fluid">
+
   <!-- 🧰 Filter Taskbar -->
   <div class="row mb-4">
     <div class="col-12 p-3 bg-white rounded shadow-sm">
       <form id="filterForm" class="row g-2 align-items-end">
+        {% for field, label, id, options in [
+            ('Gender', 'Gender', 'genderFilter', ['All', 'Female', 'Male', 'Both']),
+            ('Temperature', 'Temperature', 'tempFilter', ['All', 'Cool', 'Hot', 'Rainy']),
+            ('Humidity', 'Humidity', 'humidityFilter', ['All', 'Low', 'Moderate', 'High']),
+            ('Age Group', 'Age Group', 'ageFilter', ['All', 'Child', 'Teenager', 'Adult', 'Senior'])
+        ] %}
         <div class="col-md-2">
-          <label for="genderFilter" class="form-label">Gender</label>
-          <select class="form-select" id="genderFilter">
-            <option value="All">All</option>
-            <option value="Female">Female</option>
-            <option value="Male">Male</option>
-            <option value="Both">Both</option>
+          <label for="{{ id }}" class="form-label">{{ label }}</label>
+          <select class="form-select" id="{{ id }}">
+            {% for opt in options %}
+            <option value="{{ opt }}">{{ opt }}</option>
+            {% endfor %}
           </select>
         </div>
-        <div class="col-md-2">
-          <label for="tempFilter" class="form-label">Temperature</label>
-          <select class="form-select" id="tempFilter">
-            <option value="All">All</option>
-            <option value="Cool">Cool</option>
-            <option value="Hot">Hot</option>
-            <option value="Rainy">Rainy</option>
-          </select>
-        </div>
-        <div class="col-md-2">
-          <label for="humidityFilter" class="form-label">Humidity</label>
-          <select class="form-select" id="humidityFilter">
-            <option value="All">All</option>
-            <option value="Low">Low</option>
-            <option value="Moderate">Moderate</option>
-            <option value="High">High</option>
-          </select>
-        </div>
-        <div class="col-md-2">
-          <label for="ageFilter" class="form-label">Age Group</label>
-          <select class="form-select" id="ageFilter">
-            <option value="All">All</option>
-            <option value="Child">Child</option>
-            <option value="Teenager">Teenager</option>
-            <option value="Adult">Adult</option>
-            <option value="Senior">Senior</option>
-          </select>
-        </div>
+        {% endfor %}
         <div class="col-md-3">
           <label for="titleFilter" class="form-label">Ad Title</label>
           <select class="form-select" id="titleFilter">
@@ -82,200 +61,96 @@
 
   <!-- 📊 KPI Cards -->
   <div class="row text-dark mb-4">
+    {% for title, id, color in [
+      ('Total Ads', 'totalAds', 'bg-primary'),
+      ('Female %', 'femalePercent', 'bg-success'),
+      ('Male %', 'malePercent', 'bg-warning'),
+      ('Both %', 'bothPercent', 'bg-info'),
+      ('All %', 'allPercent', 'text-white" style="background-color: #8a2be2'),
+      ('Age Groups', 'uniqueAges', 'text-dark" style="background-color: #ff1493')
+    ] %}
     <div class="col-md-2 mb-3">
-      <div class="card bg-primary shadow text-white text-center">
+      <div class="card {{ color }} shadow text-center">
         <div class="card-body">
-          <h6 class="card-title text-uppercase">Total Ads</h6>
-          <h3 id="totalAds">0</h3>
+          <h6 class="card-title text-uppercase">{{ title }}</h6>
+          <h3 id="{{ id }}" {% if 'text-dark' in color %}style="color: white;"{% endif %}>0</h3>
         </div>
       </div>
     </div>
-    <div class="col-md-2 mb-3">
-      <div class="card bg-success shadow text-white text-center">
-        <div class="card-body">
-          <h6 class="card-title text-uppercase">Female %</h6>
-          <h3 id="femalePercent">0%</h3>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-2 mb-3">
-      <div class="card bg-warning shadow text-white text-center">
-        <div class="card-body">
-          <h6 class="card-title text-uppercase">Male %</h6>
-          <h3 id="malePercent">0%</h3>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-2 mb-3">
-      <div class="card bg-info shadow text-white text-center">
-        <div class="card-body">
-          <h6 class="card-title text-uppercase">Both %</h6>
-          <h3 id="bothPercent">0%</h3>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-2 mb-3">
-      <div class="card shadow text-white text-center" style="background-color: #8a2be2;">
-        <div class="card-body">
-          <h6 class="card-title text-uppercase">All %</h6>
-          <h3 id="allPercent">0%</h3>
-        </div>
-      </div>
-    </div>
-    <!-- Final KPI card - brighter color -->
-    <div class="col-md-2 mb-3">
-      <div class="card shadow text-dark text-center" style="background-color: #ff1493;">
-        <div class="card-body">
-          <h6 class="card-title text-uppercase">Age Groups</h6>
-          <h3 id="uniqueAges" style="color: white;">0</h3>
-        </div>
-      </div>
-    </div>    
-
-<!-- 📈 Charts -->
-<div id="chartSection" class="row g-4">
-  <!-- Age Group -->
-  <div class="col chart-col mb-4">
-    <div class="card bg-white text-dark shadow">
-      <div class="card-body d-flex flex-column justify-content-center align-items-center" style="height: 280px;">
-        <h5 class="card-title mb-3">Age Group Distribution</h5>
-        <canvas id="ageChart" style="max-width: 100%; max-height: 100%;"></canvas>
-      </div>
-    </div>
+    {% endfor %}
   </div>
 
-  <!-- Gender -->
-  <div class="col chart-col mb-4">
-    <div class="card bg-white text-dark shadow">
-      <div class="card-body d-flex flex-column justify-content-center align-items-center" style="height: 280px;">
-        <h5 class="card-title mb-3">Gender Breakdown</h5>
-        <canvas id="genderChart" style="max-width: 100%; max-height: 100%;"></canvas>
+  <!-- 📈 Charts -->
+  <div id="chartSection" class="row g-4">
+    {% for title, cid in [
+      ('Age Group Distribution', 'ageChart'),
+      ('Gender Breakdown', 'genderChart'),
+      ('Ads by Temperature', 'tempChart'),
+      ('Ads by Humidity', 'humidityChart'),
+      ('Temp vs Humidity (Scatter)', 'bubbleChart'),
+      ('Engagement Over Time', 'radarChart')
+    ] %}
+    <div class="col chart-col mb-4">
+      <div class="card bg-white text-dark shadow">
+        <div class="card-body d-flex flex-column justify-content-center align-items-center" style="height: 280px;">
+          <h5 class="card-title mb-3">{{ title }}</h5>
+          <canvas id="{{ cid }}" style="max-width: 100%; max-height: 100%;"></canvas>
+        </div>
       </div>
     </div>
-  </div>
-
-  <!-- Temperature -->
-  <div class="col chart-col mb-4">
-    <div class="card bg-white text-dark shadow">
-      <div class="card-body d-flex flex-column justify-content-center align-items-center" style="height: 280px;">
-        <h5 class="card-title mb-3">Ads by Temperature</h5>
-        <canvas id="tempChart" style="max-width: 100%; max-height: 100%;"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <!-- Humidity -->
-  <div class="col chart-col mb-4">
-    <div class="card bg-white text-dark shadow">
-      <div class="card-body d-flex flex-column justify-content-center align-items-center" style="height: 280px;">
-        <h5 class="card-title mb-3">Ads by Humidity</h5>
-        <canvas id="humidityChart" style="max-width: 100%; max-height: 100%;"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <!-- Scatter Plot -->
-  <div class="col chart-col mb-4">
-    <div class="card bg-white text-dark shadow">
-      <div class="card-body d-flex flex-column justify-content-center align-items-center" style="height: 280px;">
-        <h5 class="card-title mb-3">Temp vs Humidity (Scatter)</h5>
-        <canvas id="bubbleChart" style="max-width: 100%; max-height: 100%;"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <!-- Polar Area -->
-  <div class="col chart-col mb-4">
-    <div class="card bg-white text-dark shadow">
-      <div class="card-body d-flex flex-column justify-content-center align-items-center" style="height: 280px;">
-        <h5 class="card-title mb-3">Top 5 Ads by Count</h5>
-        <canvas id="radarChart" style="max-width: 100%; max-height: 100%;"></canvas>
-      </div>
-    </div>
+    {% endfor %}
   </div>
 </div>
 
 <script>
   const chartSection = document.getElementById("chartSection");
   const viewMode = localStorage.getItem("viewMode") || "vertical";
+  chartSection.className = viewMode === "horizontal"
+    ? "row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4"
+    : "row";
 
-  if (viewMode === "horizontal") {
-    chartSection.className = "row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4";
-  } else {
-    chartSection.className = "row";
-    const cols = chartSection.querySelectorAll(".col");
-    cols.forEach(col => col.classList.add("col-lg-6"));
-  }
-</script>
+  document.querySelectorAll(".col.chart-col").forEach(col => {
+    if (viewMode === "vertical") col.classList.add("col-lg-6");
+  });
 
-<!-- Chart Scripts -->
-<script>
   async function loadDashboardData() {
-    const gender = document.getElementById("genderFilter")?.value || "All";
-    const temperature = document.getElementById("tempFilter")?.value || "All";
-    const humidity = document.getElementById("humidityFilter")?.value || "All";
-    const age_group = document.getElementById("ageFilter")?.value || "All";
-    const title = document.getElementById("titleFilter")?.value || "All";
+    const params = ['gender', 'temperature', 'humidity', 'age_group', 'title']
+      .map(f => `${f}=${encodeURIComponent(document.getElementById(f + 'Filter')?.value || 'All')}`)
+      .join('&');
 
-    const res = await fetch(`/dashboard-data?gender=${gender}&temperature=${temperature}&humidity=${humidity}&age_group=${age_group}&title=${encodeURIComponent(title)}`);
+    const res = await fetch(`/dashboard-data?${params}`);
     const data = await res.json();
 
-    const ageGroups = Object.keys(data.age_groups || {});
-    const ageCounts = Object.values(data.age_groups || {});
-    const genders = Object.keys(data.gender_counts || {});
-    const genderCounts = Object.values(data.gender_counts || {});
-    const humidityGroups = Object.keys(data.humidity_counts || {});
-    const humidityCounts = Object.values(data.humidity_counts || {});
-    const temperatureGroups = Object.keys(data.temperature_counts || {});
-    const temperatureCounts = Object.values(data.temperature_counts || {});
-    const ads = data.ads || [];
-
-    // Update title dropdown dynamically
-    const titleSelect = document.getElementById("titleFilter");
-    const existingTitles = Array.from(titleSelect.options).map(opt => opt.value);
-    const newTitles = [...new Set(ads.map(ad => ad.title))].sort();
-
-    if (existingTitles.length <= 1) {
-      newTitles.forEach(title => {
-        const option = document.createElement("option");
-        option.value = title;
-        option.textContent = title;
-        titleSelect.appendChild(option);
-      });
-    }
-
-    const total = genderCounts.reduce((a, b) => a + b, 0);
-    const female = data.gender_counts?.Female || 0;
-    const male = data.gender_counts?.Male || 0;
-    const both = data.gender_counts?.Both || 0;
-    const all = data.gender_counts?.All || 0;
-
-    document.getElementById("totalAds").textContent = total;
-    document.getElementById("femalePercent").textContent = `${((female / total) * 100 || 0).toFixed(1)}%`;
-    document.getElementById("malePercent").textContent = `${((male / total) * 100 || 0).toFixed(1)}%`;
-    document.getElementById("bothPercent").textContent = `${((both / total) * 100 || 0).toFixed(1)}%`;
-    document.getElementById("allPercent").textContent = `${((all / total) * 100 || 0).toFixed(1)}%`;
-    document.getElementById("uniqueAges").textContent = ageGroups.length;
     const clearAndCreate = (id, config) => {
       const old = document.getElementById(id);
       const newCanvas = old.cloneNode();
       old.parentNode.replaceChild(newCanvas, old);
-
-      if (id !== "bubbleChart") {
+      if (id !== "bubbleChart" && id !== "radarChart") {
         config.plugins = config.plugins || [];
         config.plugins.push(ChartDataLabels);
       }
-
       new Chart(newCanvas, config);
     };
 
+    // KPI updates
+    const total = Object.values(data.gender_counts || {}).reduce((a, b) => a + b, 0);
+    const getPct = g => ((data.gender_counts?.[g] || 0) / total * 100).toFixed(1);
+    document.getElementById("totalAds").textContent = total;
+    document.getElementById("femalePercent").textContent = `${getPct("Female")}%`;
+    document.getElementById("malePercent").textContent = `${getPct("Male")}%`;
+    document.getElementById("bothPercent").textContent = `${getPct("Both")}%`;
+    document.getElementById("allPercent").textContent = `${getPct("All")}%`;
+    document.getElementById("uniqueAges").textContent = Object.keys(data.age_groups || {}).length;
+    
+
+    // Charts
     clearAndCreate("ageChart", {
       type: "pie",
       data: {
-        labels: ageGroups,
+        labels: Object.keys(data.age_groups || {}),
         datasets: [{
           label: "Age Groups",
-          data: ageCounts,
+          data: Object.values(data.age_groups || {}),
           backgroundColor: ["#f46a6a", "#34c38f", "#f1b44c", "#50a5f1"]
         }]
       }
@@ -284,10 +159,10 @@
     clearAndCreate("genderChart", {
       type: "doughnut",
       data: {
-        labels: genders,
+        labels: Object.keys(data.gender_counts || {}),
         datasets: [{
           label: "Genders",
-          data: genderCounts,
+          data: Object.values(data.gender_counts || {}),
           backgroundColor: ["#00bcd4", "#e91e63", "#9e9e9e"]
         }]
       }
@@ -296,12 +171,11 @@
     clearAndCreate("tempChart", {
       type: "bar",
       data: {
-        labels: temperatureGroups,
+        labels: Object.keys(data.temperature_counts || {}),
         datasets: [{
           label: "Number of Ads",
-          data: temperatureCounts,
-          backgroundColor: temperatureGroups.map((_, i) =>
-            ['#ff6384', '#36a2eb', '#ffce56'][i % 3])
+          data: Object.values(data.temperature_counts || {}),
+          backgroundColor: ["#ff6384", "#36a2eb", "#ffce56"]
         }]
       }
     });
@@ -309,30 +183,21 @@
     clearAndCreate("humidityChart", {
       type: "bar",
       data: {
-        labels: humidityGroups,
+        labels: Object.keys(data.humidity_counts || {}),
         datasets: [{
           label: "Number of Ads",
-          data: humidityCounts,
-          backgroundColor: humidityGroups.map((_, i) =>
-            ['#8e44ad', '#2ecc71', '#e67e22'][i % 3])
+          data: Object.values(data.humidity_counts || {}),
+          backgroundColor: ["#8e44ad", "#2ecc71", "#e67e22"]
         }]
       }
     });
 
-    const tempMap = { cool: 1, hot: 2, rainy: 3 };
-    const humidMap = { low: 1, moderate: 2, high: 3 };
-    const uniqueTitles = [...new Set(ads.map(ad => ad.title))];
-    const colorMap = Object.fromEntries(uniqueTitles.map((t, i) =>
-      [t, `hsl(${(i * 137.5) % 360}, 70%, 60%)`]
-    ));
-
-    const scatterPoints = data.scatter || [];
     clearAndCreate("bubbleChart", {
       type: 'scatter',
       data: {
         datasets: [{
-          label: "Environment Readings",
-          data: scatterPoints,
+          label: "Temp vs Humidity",
+          data: data.scatter || [],
           backgroundColor: "#007bff",
           borderColor: "#007bff",
           pointRadius: 5
@@ -358,118 +223,46 @@
       }
     });
 
-    clearAndCreate("bubbleChart", {
-      type: 'scatter',
+    clearAndCreate("radarChart", {
+      type: "line",
       data: {
-        datasets: scatterPoints.map(point => ({
-          label: point.title,
-          data: [{ x: point.x, y: point.y }],
-          backgroundColor: point.backgroundColor,
-          borderColor: point.backgroundColor,
-          pointRadius: 6
-        }))
+        datasets: [{
+          label: "Engagement Over Time",
+          data: data.line || [],
+          fill: false,
+          borderColor: "#28a745",
+          tension: 0.3
+        }]
       },
       options: {
-        plugins: {
-          tooltip: {
-            callbacks: {
-              label: ctx => `${ctx.dataset.label} at ${ctx.raw.x.toFixed(2)}, ${ctx.raw.y.toFixed(2)}`
-            }
-          },
-          legend: {
-            display: true,
-            labels: {
-              boxWidth: 14,
-              font: { size: 10 }
-            }
-          }
-        },
         scales: {
           x: {
-            title: { display: true, text: 'Temperature' },
-            ticks: {
-              callback: val => Object.keys(tempMap).find(k => tempMap[k] === val) || val
+            type: "time",
+            time: {
+              parser: "yyyy-MM-dd'T'HH:mm:ss",
+              tooltipFormat: "MMM d, HH:mm",
+              unit: "minute",
+              displayFormats: { minute: "HH:mm" }
             },
-            min: 0,
-            max: 4
+            title: { display: true, text: "Time" }
           },
           y: {
-            title: { display: true, text: 'Humidity' },
-            ticks: {
-              callback: val => Object.keys(humidMap).find(k => humidMap[k] === val) || val
-            },
-            min: 0,
-            max: 4
+            title: { display: true, text: "Engagement Score" },
+            beginAtZero: true
           }
+        },
+        plugins: {
+          legend: { display: true }
         }
       }
     });
-    const adTitleCounts = {};
-    ads.forEach(ad => {
-      const title = ad.title?.trim();
-      if (!title) return;
-      adTitleCounts[title] = (adTitleCounts[title] || 0) + 1;
-    });
-
-// Sort ad titles by count and get Top 5
-const sorted = Object.entries(adTitleCounts)
-  .sort(([, a], [, b]) => b - a)
-  .slice(0, 5);
-
-const topTitles = sorted.map(([k]) => k);
-const topCounts = sorted.map(([, v]) => v);
-const topColors = topTitles.map((_, i) => `hsl(${(i * 137.5) % 360}, 70%, 60%)`);
-
-  clearAndCreate("radarChart", {
-    type: 'bar',
-    data: {
-      labels: topTitles,
-      datasets: [{
-        label: "Ad Count",
-        data: topCounts,
-        backgroundColor: topColors
-      }]
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        datalabels: {
-          anchor: 'center',
-          align: 'center',
-          color: '#fff',
-          font: { size: 12, weight: 'bold' },
-          formatter: value => `${value} ads`,
-          clip: false
-        },
-        tooltip: {
-          callbacks: {
-            label: ctx => `${ctx.label}: ${ctx.formattedValue} ad(s)`
-          }
-        },
-        legend: { display: false }
-      },
-      scales: {
-        x: {
-          title: { display: true, text: 'Ad Count' },
-          beginAtZero: true
-        },
-        y: {
-          ticks: { autoSkip: false }
-        }
-      }
-    }
-  });
   }
 
-  // Reload data on filter apply
-  document.getElementById("filterForm").addEventListener("submit", function (e) {
+  document.getElementById("filterForm").addEventListener("submit", e => {
     e.preventDefault();
     loadDashboardData();
   });
 
-  // Initial chart load
   loadDashboardData();
 </script>
 {% endblock %}

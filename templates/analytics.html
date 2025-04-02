@@ -81,7 +81,7 @@
       ('Ads by Temperature', 'tempChart'),
       ('Ads by Humidity', 'humidityChart'),
       ('Temp vs Humidity (Scatter)', 'bubbleChart'),
-      ('Engagement Over Time', 'engagementChart')
+      ('Avg Duration by Emotion', 'durationEmotionChart')
     ] %}
     <div class="col chart-col mb-4">
       <div class="card bg-white text-dark shadow">
@@ -213,36 +213,28 @@
       }
     });
 
-    clearAndCreate("engagementChart", {
-      type: "line",
+    clearAndCreate("durationEmotionChart", {
+      type: "bar",
       data: {
+        labels: (data.avg_duration_emotion || []).map(d => d.x),
         datasets: [{
-          label: "Engagement Over Time",
-          data: data.line || [],
-          fill: false,
-          borderColor: "#28a745",
-          tension: 0.3
+          label: "Average Duration (s)",
+          data: (data.avg_duration_emotion || []).map(d => d.y),
+          backgroundColor: ["#ff9999", "#66b3ff", "#99ff99"]
         }]
       },
       options: {
         scales: {
-          x: {
-            type: "time",
-            time: {
-              parser: "yyyy-MM-dd'T'HH:mm:ss",
-              tooltipFormat: "MMM d, HH:mm",
-              unit: "minute",
-              displayFormats: { minute: "HH:mm" }
-            },
-            title: { display: true, text: "Time" }
-          },
           y: {
-            title: { display: true, text: "Engagement Score" },
-            beginAtZero: true
+            beginAtZero: true,
+            title: { display: true, text: "Duration (seconds)" }
+          },
+          x: {
+            title: { display: true, text: "Emotion" }
           }
         },
         plugins: {
-          legend: { display: true }
+          legend: { display: false }
         }
       }
     });

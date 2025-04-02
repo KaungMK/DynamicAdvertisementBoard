@@ -183,16 +183,20 @@ def dashboard_data():
         except:
             continue
 
-    # === Line chart: engagement score over time from AudienceData ===
-    line_data = []
-    for entry in sorted(audience, key=lambda x: x.get("exit_timestamp", "")):
+    # === Chart: Average Duration by Emotion from AudienceData ===
+    duration_by_emotion = collections.defaultdict(list)
+    for item in audience:
+        emotion = item.get("emotion", "Unknown")
         try:
-            line_data.append({
-                'x': entry.get('exit_timestamp'),
-                'y': float(entry.get('engagement_score', 0))
-            })
+            duration = float(item.get("duration", 0))
+            duration_by_emotion[emotion].append(duration)
         except:
             continue
+
+    avg_duration_chart = [
+        {"x": emotion, "y": round(sum(times)/len(times), 2)} 
+        for emotion, times in duration_by_emotion.items() if times
+    ]
 
     return jsonify({
         # KPI
@@ -212,7 +216,7 @@ def dashboard_data():
 
         # New charts
         'scatter': scatter_data,
-        'line': line_data
+        'avg_duration_emotion': avg_duration_chart,
     })
 
 

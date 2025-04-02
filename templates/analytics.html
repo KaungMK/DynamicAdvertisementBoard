@@ -326,20 +326,35 @@
       [t, `hsl(${(i * 137.5) % 360}, 70%, 60%)`]
     ));
 
-    const scatterPoints = [];
-    ads.forEach(ad => {
-      const tempRaw = ad.temperature?.toLowerCase().trim();
-      const humidRaw = ad.humidity?.toLowerCase().trim();
-      const tempVal = tempMap[tempRaw];
-      const humidVal = humidMap[humidRaw];
-      if (tempVal && humidVal) {
-        const jitter = () => (Math.random() - 0.5) * 0.3;
-        scatterPoints.push({
-          x: tempVal + jitter(),
-          y: humidVal + jitter(),
-          title: ad.title,
-          backgroundColor: colorMap[ad.title]
-        });
+    const scatterPoints = data.scatter || [];
+    clearAndCreate("bubbleChart", {
+      type: 'scatter',
+      data: {
+        datasets: [{
+          label: "Environment Readings",
+          data: scatterPoints,
+          backgroundColor: "#007bff",
+          borderColor: "#007bff",
+          pointRadius: 5
+        }]
+      },
+      options: {
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: ctx => `Temp: ${ctx.raw.x.toFixed(1)}°C, Humidity: ${ctx.raw.y.toFixed(1)}%`
+            }
+          },
+          legend: { display: false }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: 'Temperature (°C)' }
+          },
+          y: {
+            title: { display: true, text: 'Humidity (%)' }
+          }
+        }
       }
     });
 

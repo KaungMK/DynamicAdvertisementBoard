@@ -4,6 +4,7 @@ from werkzeug.utils import secure_filename
 import os
 import uuid
 import collections
+from dynamodb import scan_table, ads_table, audience_table, environmental_table
 
 app = Flask(__name__)
 app.secret_key = '2009EDGY'
@@ -97,83 +98,53 @@ def display_advertisments():
     except Exception as e:
         return str(e)
 
-
 @app.route('/analytics')
 def analytics():
     return render_template('analytics.html')
 
-
 @app.route('/dashboard-data')
 def dashboard_data():
-    gender_filter = request.args.get("gender")
-    temp_filter = request.args.get("temperature")
-    humidity_filter = request.args.get("humidity")
-    age_filter = request.args.get("age_group")
-    title_filter = request.args.get("title")
-
     try:
-        response = ad_table.scan()
-        items = response.get('Items', [])
-        while 'LastEvaluatedKey' in response:
-            response = ad_table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
-            items.extend(response.get('Items', []))
+        items = scan_table(audience_table)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-    # Apply filters (case-insensitive)
-    if gender_filter and gender_filter != "All":
-        items = [item for item in items if str(item.get("gender", "")).strip().title() == gender_filter]
-
-    if temp_filter and temp_filter != "All":
-        items = [item for item in items if str(item.get("temperature", "")).strip().title() == temp_filter]
-
-    if humidity_filter and humidity_filter != "All":
-        items = [item for item in items if str(item.get("humidity", "")).strip().title() == humidity_filter]
-
-    if age_filter and age_filter != "All":
-        items = [item for item in items if str(item.get("age_group", "")).strip().title() == age_filter]
-
-    if title_filter and title_filter != "All":
-        items = [item for item in items if title_filter.lower() in str(item.get("title", "")).lower()]
-
-    # Aggregations
     emotion_counts = collections.Counter()
-    age_groups = collections.Counter()
     gender_counts = collections.Counter()
-    humidity_counts = collections.Counter()
-    temperature_counts = collections.Counter()
-    ads_raw = []
+    age_groups = collections.Counter()
+    engagement_scores = []
+    durations = []
 
     for item in items:
-        emotion = str(item.get('emotion', 'Unknown')).strip().title()
-        age = str(item.get('age_group', 'Unknown')).strip().title()
-        gender = str(item.get('gender', 'Unknown')).strip().title()
-        humidity = str(item.get('humidity', 'Unknown')).strip().title()
-        temperature = str(item.get('temperature', 'Unknown')).strip().title()
+        emotion = str(item.get('emotion', 'Unknown')).title()
+        gender = str(item.get('gender', 'Unknown')).title()
+        age = int(item.get('age', 0))
+        engagement = float(item.get('engagement_score', 0))
+        duration = float(item.get('duration', 0))
+
+        # Group age into buckets
+        if age < 13:
+            age_group = "child"
+        elif age < 20:
+            age_group = "teenager"
+        elif age < 60:
+            age_group = "adult"
+        else:
+            age_group = "senior"
 
         emotion_counts[emotion] += 1
-        age_groups[age] += 1
         gender_counts[gender] += 1
-        humidity_counts[humidity] += 1
-        temperature_counts[temperature] += 1
-
-        ads_raw.append({
-            "title": item.get("title", "Unknown"),
-            "temperature": temperature,
-            "humidity": humidity,
-            "gender": gender,
-            "age_group": age
-        })
+        age_groups[age_group] += 1
+        engagement_scores.append(engagement)
+        durations.append(duration)
 
     return jsonify({
         'emotions': dict(emotion_counts),
         'age_groups': dict(age_groups),
         'gender_counts': dict(gender_counts),
-        'humidity_counts': dict(humidity_counts),
-        'temperature_counts': dict(temperature_counts),
-        'ads': ads_raw
+        'average_engagement': round(sum(engagement_scores) / len(engagement_scores), 2) if engagement_scores else 0,
+        'average_duration': round(sum(durations) / len(durations), 2) if durations else 0
     })
-
 
 if __name__ == '__main__':
     app.run(debug=True)

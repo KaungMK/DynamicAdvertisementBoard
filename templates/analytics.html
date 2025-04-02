@@ -27,7 +27,7 @@
 
 <div class="container-fluid">
 
-  <!-- 🧰 Filter Taskbar -->
+  <!-- 🪰 Filter Taskbar -->
   <div class="row mb-4">
     <div class="col-12 p-3 bg-white rounded shadow-sm">
       <form id="filterForm" class="row g-2 align-items-end">
@@ -35,7 +35,6 @@
             ('Gender', 'Gender', 'genderFilter', ['All', 'Female', 'Male', 'Both']),
             ('Temperature', 'Temperature', 'tempFilter', ['All', 'Cool', 'Hot', 'Rainy']),
             ('Humidity', 'Humidity', 'humidityFilter', ['All', 'Low', 'Moderate', 'High']),
-            ('Age Group', 'Age Group', 'ageFilter', ['All', 'Child', 'Teenager', 'Adult', 'Senior'])
         ] %}
         <div class="col-md-2">
           <label for="{{ id }}" class="form-label">{{ label }}</label>
@@ -46,12 +45,6 @@
           </select>
         </div>
         {% endfor %}
-        <div class="col-md-3">
-          <label for="titleFilter" class="form-label">Ad Title</label>
-          <select class="form-select" id="titleFilter">
-            <option value="All">All</option>
-          </select>
-        </div>
         <div class="col-md-1">
           <button class="btn btn-primary w-100" type="submit">Apply</button>
         </div>
@@ -61,19 +54,19 @@
 
   <!-- 📊 KPI Cards -->
   <div class="row text-dark mb-4">
-    {% for title, id, color in [
-      ('Total Ads', 'totalAds', 'bg-primary'),
-      ('Female %', 'femalePercent', 'bg-success'),
-      ('Male %', 'malePercent', 'bg-warning'),
-      ('Both %', 'bothPercent', 'bg-info'),
-      ('All %', 'allPercent', 'text-white" style="background-color: #8a2be2'),
-      ('Age Groups', 'uniqueAges', 'text-dark" style="background-color: #ff1493')
+    {% for title, id, class_name, style in [
+      ('Total Ads', 'totalAds', 'bg-primary text-black', ''),
+      ('Female %', 'femalePercent', 'bg-success text-black', ''),
+      ('Male %', 'malePercent', 'bg-warning text-black', ''),
+      ('Both %', 'bothPercent', 'bg-info text-black', ''),
+      ('All %', 'allPercent', 'text-black', 'background-color: #8a2be2'),
+      ('Avg Engagement', 'avgEngagement', 'text-black', 'background-color: #ff69b4')
     ] %}
     <div class="col-md-2 mb-3">
-      <div class="card {{ color }} shadow text-center">
+      <div class="card {{ class_name }} shadow text-center" style="{{ style }}">
         <div class="card-body">
           <h6 class="card-title text-uppercase">{{ title }}</h6>
-          <h3 id="{{ id }}" {% if 'text-dark' in color %}style="color: white;"{% endif %}>0</h3>
+          <h3 id="{{ id }}">0</h3>
         </div>
       </div>
     </div>
@@ -88,7 +81,7 @@
       ('Ads by Temperature', 'tempChart'),
       ('Ads by Humidity', 'humidityChart'),
       ('Temp vs Humidity (Scatter)', 'bubbleChart'),
-      ('Engagement Over Time', 'radarChart')
+      ('Engagement Over Time', 'engagementChart')
     ] %}
     <div class="col chart-col mb-4">
       <div class="card bg-white text-dark shadow">
@@ -114,7 +107,7 @@
   });
 
   async function loadDashboardData() {
-    const params = ['gender', 'temperature', 'humidity', 'age_group', 'title']
+    const params = ['gender', 'temperature', 'humidity', 'age_group']
       .map(f => `${f}=${encodeURIComponent(document.getElementById(f + 'Filter')?.value || 'All')}`)
       .join('&');
 
@@ -125,14 +118,13 @@
       const old = document.getElementById(id);
       const newCanvas = old.cloneNode();
       old.parentNode.replaceChild(newCanvas, old);
-      if (id !== "bubbleChart" && id !== "radarChart") {
+      if (id !== "bubbleChart" && id !== "engagementChart") {
         config.plugins = config.plugins || [];
         config.plugins.push(ChartDataLabels);
       }
       new Chart(newCanvas, config);
     };
 
-    // KPI updates
     const total = Object.values(data.gender_counts || {}).reduce((a, b) => a + b, 0);
     const getPct = g => ((data.gender_counts?.[g] || 0) / total * 100).toFixed(1);
     document.getElementById("totalAds").textContent = total;
@@ -140,10 +132,8 @@
     document.getElementById("malePercent").textContent = `${getPct("Male")}%`;
     document.getElementById("bothPercent").textContent = `${getPct("Both")}%`;
     document.getElementById("allPercent").textContent = `${getPct("All")}%`;
-    document.getElementById("uniqueAges").textContent = Object.keys(data.age_groups || {}).length;
-    
+    document.getElementById("avgEngagement").textContent = (data.line?.length > 0 ? (data.line.reduce((a, b) => a + b.y, 0) / data.line.length).toFixed(1) : '0.0');
 
-    // Charts
     clearAndCreate("ageChart", {
       type: "pie",
       data: {
@@ -223,7 +213,7 @@
       }
     });
 
-    clearAndCreate("radarChart", {
+    clearAndCreate("engagementChart", {
       type: "line",
       data: {
         datasets: [{

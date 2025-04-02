@@ -1,18 +1,29 @@
+import os
 import boto3
 from collections import Counter
+from dotenv import load_dotenv
+
+# Load .env variables
+load_dotenv()
 
 # Initialize the DynamoDB resource
-dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+dynamodb = boto3.resource(
+    'dynamodb',
+    region_name=os.getenv("AWS_REGION"),
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+    aws_session_token=os.getenv("AWS_SESSION_TOKEN")
+)
 
-# Replace with your table name
-TABLE_NAME = "ads-info"
+# Load table names
+ads_table = dynamodb.Table(os.getenv("ADS_TABLE"))
+audience_table = dynamodb.Table(os.getenv("AUDIENCE_TABLE"))
+environmental_table = dynamodb.Table(os.getenv("ENVIRONMENTAL_TABLE"))
 
-# Reference the table
-table = dynamodb.Table(TABLE_NAME)
-
-def write_to_dynamodb():
+# === Write Sample to Ads Table ===
+def write_to_ads_table():
     try:
-        response = table.put_item(
+        response = ads_table.put_item(
             Item={
                 "id": 2,
                 "name": "John Doeeeeee",
@@ -24,13 +35,12 @@ def write_to_dynamodb():
     except Exception as e:
         return {"error": str(e)}
 
-
-def read_all_from_dynamodb():
+# === Generic Scan Function ===
+def scan_table(table):
     try:
         response = table.scan()
         items = response.get('Items', [])
 
-        # If the scan result is paginated, continue fetching
         while 'LastEvaluatedKey' in response:
             response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
             items.extend(response.get('Items', []))
@@ -39,29 +49,39 @@ def read_all_from_dynamodb():
     except Exception as e:
         return {"error": str(e)}
 
-def get_analytics_summary():
-    try:
-        response = table.scan()
-        items = response.get('Items', [])
+# === Read All from Ads Table ===
+def read_all_from_ads():
+    return scan_table(ads_table)
 
-        while 'LastEvaluatedKey' in response:
-            response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
-            items.extend(response.get('Items', []))
+# === Read All from Audience Table ===
+def read_all_from_audience():
+    return scan_table(audience_table)
+
+# === Read All from Environmental Table ===
+def read_all_from_environmental():
+    return scan_table(environmental_table)
+
+# === Example Analytics Summary from Audience Table ===
+def get_audience_analytics_summary():
+    try:
+        items = scan_table(audience_table)
+        if isinstance(items, dict) and "error" in items:
+            return items  # propagate error
 
         age_dist = Counter()
         gender_dist = Counter()
         emotion_dist = Counter()
-        attention_spans = []
-        engagement_levels = []
+        durations = []
+        engagement_scores = []
         timestamps = []
 
         for item in items:
             age = item.get('age')
             gender = item.get('gender')
             emotion = item.get('emotion')
-            attention = item.get('attention_span')
-            engagement = item.get('engagement_level')
-            ts = item.get('timestamp')
+            duration = item.get('duration')
+            engagement = item.get('engagement_score')
+            ts = item.get('entry_timestamp')
 
             if age:
                 age_dist[age] += 1
@@ -69,10 +89,10 @@ def get_analytics_summary():
                 gender_dist[gender] += 1
             if emotion:
                 emotion_dist[emotion] += 1
-            if attention:
-                attention_spans.append(float(attention))
+            if duration:
+                durations.append(float(duration))
             if engagement:
-                engagement_levels.append(float(engagement))
+                engagement_scores.append(float(engagement))
             if ts:
                 timestamps.append(ts)
 
@@ -80,9 +100,9 @@ def get_analytics_summary():
             'age_distribution': dict(age_dist),
             'gender_distribution': dict(gender_dist),
             'emotion_distribution': dict(emotion_dist),
-            'average_attention_span': sum(attention_spans)/len(attention_spans) if attention_spans else 0,
-            'average_engagement_level': sum(engagement_levels)/len(engagement_levels) if engagement_levels else 0,
-            'total_users': len(items),
+            'average_duration': sum(durations)/len(durations) if durations else 0,
+            'average_engagement_score': sum(engagement_scores)/len(engagement_scores) if engagement_scores else 0,
+            'total_audience': len(items),
             'timestamps': timestamps
         }
 

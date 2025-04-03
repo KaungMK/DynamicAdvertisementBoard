@@ -6,20 +6,17 @@ This branch provides a standalone web-based analytics dashboard for visualizing 
 - ### KPI Summary Cards
   - Total Ads
   - Percentage of Female / Male / Both / All
-  - Unique Age Groups Detected
+  - Average Duration
 - ### Interactive Filters
   - Gender
-  - Temperature
   - Humidity
-  - Age Group
-  - Ad Title
 - ### Charts
   - Age Group Distribution (Pie Chart)
   - Gender Breakdown (Doughnut Chart)
   - Ads by Temperature (Bar Chart)
   - Ads by Humidity (Bar Chart)
   - Temperature vs Humidity (Scatter Plot)
-  - Top 5 Ad Titles by Count (Horizontal Bar Chart)
+  - Average Duration by Emotion (Bar Chart)
 - ### Responsive Layout
    - Toggle between vertical and horizontal chart layouts
    - Fully responsive and mobile-friendly

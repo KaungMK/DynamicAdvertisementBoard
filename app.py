@@ -10,9 +10,9 @@ app = Flask(__name__)
 app.secret_key = '2009EDGY'
 
 s3_client = boto3.client('s3')
-S3_BUCKET = "adsbucket2009"
+S3_BUCKET = "dynamicadstoragemk"
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-ad_table = dynamodb.Table('ads-table')
+ad_table = dynamodb.Table('AdsTable')
 
 
 @app.route('/')

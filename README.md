@@ -45,7 +45,9 @@ AWS_ACCESS_KEY_ID=your_key
 AWS_SECRET_ACCESS_KEY=your_secret
 AWS_REGION=your-aws-region
 S3_BUCKET_NAME=your-s3-bucket
-DYNAMODB_TABLE=your-db-table
+ADS_TABLE=your-ads-table
+ENVIRONMENTAL_TABLE=your-environmental-data-table
+AUDIENCE_TABLE=your-audience-table
 ```
 ### 5. Run the Flask app
 ```

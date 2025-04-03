@@ -41,8 +41,192 @@ The Smart Advertisement Board consists of three main components:
 
 The system consists of the following key components:
 
-- **smart_ad_display.py**: Main application that manages the GUI and ad rotation
-- **decision_engine.py**: Core logic for selecting optimal advertisements
+## smart_ad_display.py - Detailed Technical Documentation
+
+The main application that manages the full-screen advertisement display interface and system orchestration.
+
+### Core Functionality
+- **Full-screen Display Management**: Creates a borderless, always-on-top window optimized for digital signage
+- **Sensor Integration**: Coordinates temperature/humidity and audience detection subsystems
+- **Dynamic Content Delivery**: Handles advertisement selection and display rotation
+- **Real-time Data Visualization**: Shows current sensor readings in header panels
+
+### Key Components
+1. **AWSContentRepository Class**
+   - Manages connection to AWS DynamoDB and S3
+   - Methods:
+     - `get_all_ads()`: Retrieves all advertisements from DynamoDB
+     - `get_ad_by_id()`: Fetches specific advertisement by ID
+
+2. **SmartAdDisplay Class**
+   - Main application class with these critical methods:
+     - `create_layout()`: Builds the complex GUI with:
+       - Scrollable sensor data panels
+       - Full-screen advertisement display area
+       - Footer with ad metadata
+       - Window control buttons
+     - `start_sensor_processes()`: Launches subprocesses for:
+       - Temperature/humidity monitoring
+       - Audience engagement analysis
+       - Flask dashboard server
+     - `display_ad()`: Handles image downloading, resizing, and display with:
+       - Dynamic sizing based on screen dimensions
+       - Purple border styling
+       - Error handling for missing images
+
+3. **Thread Management**
+   - `auto_cycle_thread()`: Controls ad rotation timing (default 10s)
+   - `sensor_update_thread_func()`: Updates sensor displays every 5s
+
+4. **Advanced Features**
+   - Fullscreen/windowed mode toggling (Ctrl+M)
+   - Graceful shutdown handling that:
+     - Terminates all subprocesses
+     - Uploads sensor data to DynamoDB
+     - Maintains upload tracking to prevent duplicates
+   - Dynamic ad sizing that maintains aspect ratio
+
+### Data Flow
+1. On startup:
+   - Initializes AWS connections
+   - Launches sensor subprocesses
+   - Begins ad rotation thread
+2. Continuous operation:
+   - Checks sensor data files for updates
+   - Requests optimal ad from decision engine
+   - Displays selected ad with metadata
+3. On shutdown:
+   - Uploads all collected data to DynamoDB
+   - Records upload tracking information
+   - Cleans up all system resources
+
+### Technical Specifications
+- **Screen Resolution Handling**: Dynamically adapts to any display size
+- **Image Processing**: Uses PIL for high-quality image resizing
+- **Error Handling**: Comprehensive logging for all operations
+- **Performance**: Optimized for Raspberry Pi 5 with:
+  - Threaded operations to prevent UI freezing
+  - Caching of frequently accessed data
+
+## decision_engine.py - Detailed Technical Documentation
+
+The brain of the system that selects the most contextually relevant advertisements.
+
+### Core Algorithm
+1. **Context Collection**:
+   - Environmental (temperature, humidity, weather)
+   - Audience (demographics, presence, emotion)
+2. **Multi-stage Filtering**:
+   - Strict demographic matching when audience present
+   - Environmental matching when no audience
+3. **Scoring System**:
+   - Weighted combination of factors
+   - Recent display penalty to ensure variety
+
+### Key Components
+1. **ContentDecisionEngine Class**
+   - Main class with these critical methods:
+     - `get_environmental_context()`: Reads and categorizes sensor data
+     - `get_audience_context()`: Processes audience detection data
+     - `select_optimal_content()`: Core decision-making algorithm
+
+2. **Relevance Calculation**
+   - `calculate_demographic_relevance()`:
+     - 90% penalty for gender mismatch
+     - 80% penalty for age mismatch
+     - 2x bonus for perfect matches
+   - `calculate_environmental_relevance()`:
+     - 80% penalty for temperature mismatch
+     - 30% penalty for humidity mismatch
+
+3. **Scoring System**
+   - Base score from display history
+   - Audience present weights:
+     - 70% demographic relevance
+     - 20% display history
+     - 10% environmental
+   - No audience weights:
+     - 60% environmental
+     - 30% display history
+     - 10% demographic
+
+4. **History Management**
+   - Tracks last 50 displayed ads
+   - Implements score decay over time
+   - Persistent storage in JSON file
+
+### Advanced Features
+1. **Multi-stage Filtering**:
+   - First pass: Perfect demographic matches
+   - Second pass: Gender matches only
+   - Fallback: Environmental matches
+2. **Weighted Random Selection**:
+   - Chooses from top 3 scored ads
+   - Uses score-based weighting
+3. **File Watchdog**: 
+   - Tracks file modifications
+   - Caches data to reduce I/O
+   - Force refresh capability
+
+### flask_data_server.py - Real-time Dashboard
+The Flask-based web server that provides real-time monitoring of system data.
+
+#### Core Functionality
+- **REST API Endpoint**: `/api/data` that serves:
+  - Latest environmental sensor readings
+  - Current audience analytics
+  - System timestamp information
+- **Interactive Dashboard**:
+  - Auto-refreshing HTML interface
+  - Visual status indicators
+  - Responsive card-based layout
+
+#### Key Features
+1. **Data Handling**:
+   - Reads from `weather_data.json` and `engagement_data.json`
+   - Provides most recent data entry for environmental readings
+   - Returns full audience detection dataset
+
+2. **Dashboard Interface**:
+   - Clean, modern UI with:
+     - Status indicators
+     - Timestamp tracking
+     - Automatic refresh every 3 seconds
+   - Client-side JavaScript for:
+     - Dynamic data updates
+     - Connection status monitoring
+     - Visual countdown timer
+
+3. **Technical Specifications**:
+   - Built with Flask and Flask-CORS
+   - Serves pre-rendered HTML template
+   - Comprehensive error handling
+   - Production-ready configuration (debug=False)
+
+#### Data Endpoints
+- `GET /` - Serves the dashboard HTML
+- `GET /api/data` - Returns JSON with:
+  ```json
+  {
+    "environmental": {
+      "avg_dht_temp": float,
+      "avg_dht_humidity": float,
+      "predicted_weather": string,
+      "timestamp": ISO8601
+    },
+    "audience": {
+      "audience_present": bool,
+      "count": int,
+      "current_audience": {
+        "age": float,
+        "gender": "M/F",
+        "emotion": string,
+        "count": int
+      }
+    }
+  }
+
+### Supporting Components:
 - **temp_humd_sensor.py**: Temperature and humidity sensing module
 - **engagement_analyzer.py**: Computer vision-based audience detection and analysis
 - **wide_resnet.py**: Neural network model for age/gender detection

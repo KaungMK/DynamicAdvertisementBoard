@@ -29,6 +29,15 @@ The Smart Advertisement Board consists of three main components:
 - **Responsive Interface**: Full-screen GUI with real-time sensor data display
 - **Web Dashboard**: Real-time monitoring of system and audience metrics
 
+## Edge Computing Benefits
+
+- **Minimized Latency**: By performing all computations locally, the system drastically reduces data transmission delays, ensuring near real-time analytics crucial for immediate-response applications
+- **Heightened Privacy and Security**: Processing sensitive data, such as facial images, directly on the device eliminates the need for cloud storage, thereby significantly reducing the risk of data breaches
+- **Optimized Bandwidth Consumption**: With on-device processing, raw video data is never transmitted to central servers, conserving network bandwidth and lowering operational costs
+- **Increased Operational Reliability**: Edge computing enables the system to operate independently of network connectivity, ensuring uninterrupted service even in areas with unstable internet
+- **Enhanced Cost Efficiency**: Reduced reliance on cloud infrastructure translates to lower operational and maintenance expenses, making the solution economically viable for large-scale deployments
+- **Optimized Processing Power**: The system conserves computational resources by analyzing only engaged audiences—those meeting defined duration and head movement thresholds—ensuring that processing power is dedicated solely to relevant interactions
+
 ## Hardware Requirements
 
 - Raspberry Pi 5 (recommended) or compatible single-board computer
